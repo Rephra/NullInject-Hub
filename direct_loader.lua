@@ -12,7 +12,12 @@ local KEYS_URL = "https://raw.githubusercontent.com/Rephra/NullInject-Hub/main/k
 -- Approved keys (fallback if server unavailable)
 local APPROVED_KEYS = {
     "NULLINJECT-2024",
-    "PREMIUM-ACCESS"
+    "PREMIUM-ACCESS",
+    "REPHRA-2024-PREMIUM",
+    "TEST-KEY-12345",
+    "DISCORD-MEMBER-VIP",
+    "GITHUB-SUPPORTER-001",
+    "EARLY-ACCESS-2024"
 }
 
 -- Create a simple GUI to show loading status
@@ -155,13 +160,12 @@ local function createKeyGUI()
     background.BackgroundTransparency = 0.3
     background.BorderSizePixel = 0
     background.Parent = gui
-    
-    -- Key container
+      -- Key container
     local container = Instance.new("Frame")
     container.Name = "Container"
-    container.Size = UDim2.new(0, 300, 0, 180)
-    container.Position = UDim2.new(0.5, -150, 0.5, -90)
-    container.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    container.Size = UDim2.new(0, 300, 0, 160)
+    container.Position = UDim2.new(0.5, -150, 0.5, -80)
+    container.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     container.BorderSizePixel = 0
     container.Parent = gui
     
@@ -179,10 +183,9 @@ local function createKeyGUI()
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
     title.TextSize = 18
     title.Font = Enum.Font.GothamBold
-    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.TextXAlignment = Enum.TextXAlignment.Center
     title.Parent = container
-    
-    -- Subtitle
+      -- Subtitle
     local subtitle = Instance.new("TextLabel")
     subtitle.Name = "Subtitle"
     subtitle.Size = UDim2.new(1, -40, 0, 20)
@@ -192,10 +195,9 @@ local function createKeyGUI()
     subtitle.TextColor3 = Color3.fromRGB(180, 180, 180)
     subtitle.TextSize = 14
     subtitle.Font = Enum.Font.Gotham
-    subtitle.TextXAlignment = Enum.TextXAlignment.Left
+    subtitle.TextXAlignment = Enum.TextXAlignment.Center
     subtitle.Parent = container
-    
-    -- Input background
+      -- Input background
     local inputBg = Instance.new("Frame")
     inputBg.Name = "InputBackground"
     inputBg.Size = UDim2.new(1, -40, 0, 36)
@@ -214,11 +216,12 @@ local function createKeyGUI()
     keyInput.Size = UDim2.new(1, -16, 1, -6)
     keyInput.Position = UDim2.new(0, 8, 0, 3)
     keyInput.BackgroundTransparency = 1
-    keyInput.Text = ""
+    keyInput.Text = "NULLINJECT-2024"
     keyInput.PlaceholderText = "Enter your key..."
     keyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
     keyInput.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
     keyInput.TextSize = 14
+    keyInput.TextXAlignment = Enum.TextXAlignment.Center
     keyInput.Font = Enum.Font.Gotham
     keyInput.Parent = inputBg
     
@@ -234,12 +237,11 @@ local function createKeyGUI()
     statusLabel.Font = Enum.Font.Gotham
     statusLabel.TextXAlignment = Enum.TextXAlignment.Left
     statusLabel.Parent = container
-    
-    -- Submit button
+      -- Submit button
     local submitButton = Instance.new("TextButton")
     submitButton.Name = "SubmitButton"
     submitButton.Size = UDim2.new(1, -40, 0, 36)
-    submitButton.Position = UDim2.new(0, 20, 1, -56)
+    submitButton.Position = UDim2.new(0, 20, 0, 120)
     submitButton.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
     submitButton.BorderSizePixel = 0
     submitButton.Text = "VERIFY"
@@ -280,28 +282,31 @@ local function createKeyGUI()
         updateStatus("Verifying key...", Color3.fromRGB(255, 200, 0))
         submitButton.Text = "VERIFYING..."
         submitButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-        
-        -- Verify with server
+          -- Always check against hardcoded keys first (faster)
         local validKey = false
-        local success, keyData = pcall(function()
-            return HttpService:GetAsync(KEYS_URL)
-        end)
         
-        if success then
-            -- Check against server keys
-            for line in keyData:gmatch("[^\r\n]+") do
-                line = line:gsub("%s+", "")
-                if not line:match("^#") and line ~= "" and line:upper() == key:upper() then
-                    validKey = true
-                    break
-                end
+        -- Check against fallback keys
+        for _, approvedKey in ipairs(APPROVED_KEYS) do
+            if approvedKey:upper() == key:upper() then
+                validKey = true
+                break
             end
-        else
-            -- Check against fallback keys
-            for _, validKey in ipairs(APPROVED_KEYS) do
-                if validKey:upper() == key:upper() then
-                    validKey = true
-                    break
+        end
+        
+        -- If not found, check against server keys
+        if not validKey then
+            local success, keyData = pcall(function()
+                return HttpService:GetAsync(KEYS_URL)
+            end)
+            
+            if success then
+                -- Check against server keys
+                for line in keyData:gmatch("[^\r\n]+") do
+                    line = line:gsub("%s+", "")
+                    if not line:match("^#") and line ~= "" and line:upper() == key:upper() then
+                        validKey = true
+                        break
+                    end
                 end
             end
         end
