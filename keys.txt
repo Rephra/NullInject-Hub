@@ -1,1 +1,10 @@
+# Valid Keys for Rephra's Nullinject
+# Add one key per line
+# Keys are case-sensitive
+
+REPHRA-2024-PREMIUM
+TEST-KEY-12345
+DISCORD-MEMBER-VIP
+GITHUB-SUPPORTER-001
+EARLY-ACCESS-2024
 
