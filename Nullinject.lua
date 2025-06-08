@@ -10,11 +10,50 @@ local LocalPlayer = Players.LocalPlayer
 local HttpService = game:GetService("HttpService")
 local StarterGui = game:GetService("StarterGui")
 
+-- Function to sanitize text by removing emoji characters that might cause rich text parsing errors
+local function sanitizeText(text)
+    if not text then return "" end
+
+    -- Replace common emoji characters with their text equivalents
+    local sanitized = tostring(text)
+    sanitized = sanitized:gsub("🍯", "[Honey]")
+    sanitized = sanitized:gsub("🌱", "[Plant]")
+    sanitized = sanitized:gsub("🍓", "[Fruit]")
+    sanitized = sanitized:gsub("🚜", "[Tractor]")
+    sanitized = sanitized:gsub("✅", "[OK]")
+    sanitized = sanitized:gsub("❌", "[X]")
+    sanitized = sanitized:gsub("⚠️", "[Warning]")
+    sanitized = sanitized:gsub("🔄", "[Refresh]")
+    sanitized = sanitized:gsub("💰", "[Money]")
+    sanitized = sanitized:gsub("🚀", "[Rocket]")
+    sanitized = sanitized:gsub("🔍", "[Search]")
+    sanitized = sanitized:gsub("🦘", "[Jump]")
+    sanitized = sanitized:gsub("🛡️", "[Shield]")
+    sanitized = sanitized:gsub("🧪", "[Test]")
+    sanitized = sanitized:gsub("📦", "[Box]")
+    sanitized = sanitized:gsub("🛒", "[Cart]")
+    sanitized = sanitized:gsub("ℹ️", "[Info]")
+    sanitized = sanitized:gsub("🌺", "[Flower]")
+    sanitized = sanitized:gsub("⚡", "[Fast]")
+    sanitized = sanitized:gsub("🐌", "[Slow]")
+    sanitized = sanitized:gsub("🎯", "[Target]")
+    sanitized = sanitized:gsub("🍎", "[Apple]")
+    sanitized = sanitized:gsub("🗑️", "[Trash]")
+    sanitized = sanitized:gsub("🟢", "[Green]")
+    sanitized = sanitized:gsub("🟡", "[Yellow]")
+    sanitized = sanitized:gsub("🔴", "[Red]")
+
+    -- Remove any remaining emoji or special characters that might cause parsing issues
+    sanitized = sanitized:gsub("[^\32-\126\128-\255]", "")
+
+    return sanitized
+end
+
 -- Notification function (now available to everyone)
 local function notify(title, text, duration)
     StarterGui:SetCore("SendNotification", {
-        Title = title,
-        Text = text,
+        Title = sanitizeText(title),
+        Text = sanitizeText(text),
         Duration = duration or 5,
     })
 end
@@ -25,12 +64,7 @@ local function validateGameId()
     local currentPlaceId = game.PlaceId
     local currentGameId = game.GameId
 
-    -- Debug information (now available to all users)
-    print("=== GAME VALIDATION ===")
-    print("Current PlaceId: " .. tostring(currentPlaceId))
-    print("Current GameId: " .. tostring(currentGameId))
-    print("Required PlaceId: " .. tostring(REQUIRED_PLACE_ID))
-    print("=======================")
+    -- Debug information removed
 
     if currentPlaceId ~= REQUIRED_PLACE_ID then
         -- Create a notification for wrong game
@@ -53,7 +87,7 @@ local function validateGameId()
         return false
     end
 
-    print("✅ Game ID validation passed - Running in Grow A Garden")
+    -- print removed: Game ID validation passed
     return true
 end
 
@@ -64,23 +98,68 @@ end
 
 -- Welcome message for all users
 notify("NullInject Premium", "Welcome " .. LocalPlayer.Name .. "! Loading script...", 3)
-print("🚀 Loading NullInject Premium for: " .. LocalPlayer.Name)
-print("✅ Access granted via key system")
+-- print removed: Loading NullInject Premium
+-- print removed: Access granted via key system
 
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
-print("Loading Library...")
+-- print removed: Loading Library
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
-print("Loading ThemeManager...")
+-- print removed: Loading ThemeManager
 local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
-print("Loading SaveManager...")
+-- print removed: Loading SaveManager
 local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
 
-print("Setting up Options and Toggles...")
+-- print removed: Setting up Options and Toggles
 local Options = Library.Options
 local Toggles = Library.Toggles
 
 Library.ForceCheckbox = false -- Forces AddToggle to AddCheckbox
 Library.ShowToggleFrameInKeybinds = true -- Make toggle keybinds work inside the keybinds UI (aka adds a toggle to the UI). Good for mobile users (Default value = true)
+
+-- Store the original Notify function
+local originalNotify = Library.Notify
+
+-- Create a wrapper function that sanitizes text to prevent rich text parsing errors
+function Library:Notify(text, duration)
+    -- Convert to string and remove or replace problematic characters
+    if text then
+        text = tostring(text)
+
+        -- Replace common emoji characters with text equivalents
+        text = text:gsub("🍯", "[Honey]")
+        text = text:gsub("🌱", "[Plant]")
+        text = text:gsub("🍓", "[Fruit]")
+        text = text:gsub("🚜", "[Tractor]")
+        text = text:gsub("✅", "[OK]")
+        text = text:gsub("❌", "[X]")
+        text = text:gsub("⚠️", "[Warning]")
+        text = text:gsub("🔄", "[Refresh]")
+        text = text:gsub("💰", "[Money]")
+        text = text:gsub("🚀", "[Rocket]")
+        text = text:gsub("🔍", "[Search]")
+        text = text:gsub("🦘", "[Jump]")
+        text = text:gsub("🛡️", "[Shield]")
+        text = text:gsub("🧪", "[Test]")
+        text = text:gsub("📦", "[Box]")
+        text = text:gsub("🛒", "[Cart]")
+        text = text:gsub("ℹ️", "[Info]")
+        text = text:gsub("🌺", "[Flower]")
+        text = text:gsub("⚡", "[Fast]")
+        text = text:gsub("🐌", "[Slow]")
+        text = text:gsub("🎯", "[Target]")
+        text = text:gsub("🍎", "[Apple]")
+        text = text:gsub("🗑️", "[Trash]")
+        text = text:gsub("🟢", "[Green]")
+        text = text:gsub("🟡", "[Yellow]")
+        text = text:gsub("🔴", "[Red]")
+
+        -- Remove any remaining emoji or special characters that might cause parsing issues
+        text = text:gsub("[^\32-\126\128-\255]", "")
+    end
+
+    -- Call the original notify function with sanitized text
+    return originalNotify(self, text, duration)
+end
 
 -- Honey Shop System Variables
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -376,7 +455,7 @@ local function initializeHoneyShop()
             return true
         end)
         if success then
-            print("Honey Shop System initialized successfully!")
+            -- print removed: Honey Shop System initialized successfully
             return true
         else
             warn("Failed to initialize Honey Shop System:", result)
@@ -390,32 +469,76 @@ end
 -- Honey Shop Functions
 local function openHoneyShop()
     if HoneyShopUI and HoneyShopUI.Enabled == false then
+        -- Use a safer approach with multiple layers of error handling
         local success, result = pcall(function()
-            local GuiController = require(ReplicatedStorage.Modules.GuiController)
-            if GuiController then
-                GuiController:Open(HoneyShopUI)
-            else
-                HoneyShopUI.Enabled = true
+            -- Try to use GuiController first (preferred method)
+            local success2, result2 = pcall(function()
+                local GuiController = require(ReplicatedStorage.Modules.GuiController)
+                if GuiController then
+                    GuiController:Open(HoneyShopUI)
+                    return true
+                end
+                return false
+            end)
+
+            -- If GuiController failed, try direct property access with protection
+            if not success2 or not result2 then
+                local success3 = pcall(function()
+                    HoneyShopUI.Enabled = true
+                end)
+
+                -- If direct property access failed, try using task.spawn as a last resort
+                if not success3 then
+                    task.spawn(function()
+                        pcall(function()
+                            HoneyShopUI.Enabled = true
+                        end)
+                    end)
+                end
             end
         end)
+
+        -- Log any errors for debugging
         if not success then
-            HoneyShopUI.Enabled = true
+            warn("Failed to open Honey Shop:", result)
         end
     end
 end
 
 local function closeHoneyShop()
     if HoneyShopUI and HoneyShopUI.Enabled == true then
+        -- Use a safer approach with multiple layers of error handling
         local success, result = pcall(function()
-            local GuiController = require(ReplicatedStorage.Modules.GuiController)
-            if GuiController then
-                GuiController:Close(HoneyShopUI)
-            else
-                HoneyShopUI.Enabled = false
+            -- Try to use GuiController first (preferred method)
+            local success2, result2 = pcall(function()
+                local GuiController = require(ReplicatedStorage.Modules.GuiController)
+                if GuiController then
+                    GuiController:Close(HoneyShopUI)
+                    return true
+                end
+                return false
+            end)
+
+            -- If GuiController failed, try direct property access with protection
+            if not success2 or not result2 then
+                local success3 = pcall(function()
+                    HoneyShopUI.Enabled = false
+                end)
+
+                -- If direct property access failed, try using task.spawn as a last resort
+                if not success3 then
+                    task.spawn(function()
+                        pcall(function()
+                            HoneyShopUI.Enabled = false
+                        end)
+                    end)
+                end
             end
         end)
+
+        -- Log any errors for debugging
         if not success then
-            HoneyShopUI.Enabled = false
+            warn("Failed to close Honey Shop:", result)
         end
     end
 end
@@ -562,6 +685,7 @@ WarningTab:UpdateWarningBox({
 	Visible = true,
 	Title = "Warning",
 	Text = "This is a warning box!",
+	RichText = false, -- Disable rich text parsing to prevent errors
 })
 
 ]]
@@ -773,12 +897,12 @@ ShopMenuGroupBox:AddToggle("CosmeticStoreToggle", {
     end,
 })
 
-ShopMenuGroupBox:AddButton("🍯 Open Honey Shop", function()
+ShopMenuGroupBox:AddButton("Open Honey Shop", function()
     openHoneyShop()
     Library:Notify("Opening Honey Shop...", 2)
 end)
 
-ShopMenuGroupBox:AddButton("❌ Close Honey Shop", function()
+ShopMenuGroupBox:AddButton("Close Honey Shop", function()
     closeHoneyShop()
     Library:Notify("Closing Honey Shop...", 2)
 end)
@@ -1081,12 +1205,12 @@ local function sellInventoryWithImprovedTeleport()
         -- Find sell stand position
         local sellStandPosition = getSellStandPosition()
         if not sellStandPosition then
-            Library:Notify("❌ Could not find Sell Stands!", 3)
+            Library:Notify("Could not find Sell Stands!", 3)
             return false
         end
 
-        print("🚀 Teleporting to Sell Stands for auto-sell...")
-        Library:Notify("🚀 Teleporting to Sell Stands...", 2)
+        print("Teleporting to Sell Stands for auto-sell...")
+        Library:Notify("Teleporting to Sell Stands...", 2)
 
         -- Calculate optimal position - very close to sell stand but not overlapping
         local optimalPosition = sellStandPosition + Vector3.new(0, 0.5, 1.5) -- Close proximity for reliable interaction
@@ -1132,26 +1256,26 @@ local function sellInventoryWithImprovedTeleport()
         -- Additional wait if items still in backpack
         if newBackpackCount > 0 and newBackpackCount >= backpackCount then
             print("⚠️  Items still in backpack, waiting longer...")
-            Library:Notify("⚠️  Extending sell wait time...", 2)
+            Library:Notify("Extending sell wait time...", 2)
             task.wait(3)
         end
 
         -- Teleport back to original position
         if OriginalPlayerPosition then
-            print("🔄 Teleporting back to original location...")
-            Library:Notify("🔄 Teleporting back...", 2)
+            print("Teleporting back to original location...")
+            Library:Notify("Teleporting back...", 2)
             LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(OriginalPlayerPosition + Vector3.new(0, 2, 0))
             task.wait(1.0) -- Ensure teleport back completes
         end
 
-        Library:Notify("✅ Auto-sell completed successfully!", 3)
+        Library:Notify("Auto-sell completed successfully!", 3)
         print("✅ Auto-sell process finished. Items sold:", (backpackCount - newBackpackCount))
         return true
     end)
 
     if not success then
-        print("❌ Error in sellInventoryWithImprovedTeleport:", result)
-        Library:Notify("❌ Error during auto-sell: " .. tostring(result), 4)
+        print("Error in autoSellWithTeleport:", result)
+        Library:Notify("Error during auto-sell: " .. tostring(result), 4)
 
         -- Try to teleport back even if there was an error
         if
@@ -1209,14 +1333,14 @@ SellGroupBox:AddToggle("AutoSell", {
         autoSellEnabled = Value
 
         if Value then
-            Library:Notify("✅ Auto-sell on equip enabled! Equip items to sell them.", 3)
+            Library:Notify("Auto-sell on equip enabled! Equip items to sell them.", 3)
 
             -- Check if player already has an equipped item (if setupAutoSellEquipMonitor is defined)
             if setupAutoSellEquipMonitor and LocalPlayer.Character then
                 local equippedTool = LocalPlayer.Character:FindFirstChildWhichIsA("Tool")
                 if equippedTool then
-                    print("🔍 Found already equipped item:", equippedTool.Name)
-                    Library:Notify("🔍 Selling already equipped item: " .. equippedTool.Name, 2)
+                    print("Auto-detected already equipped item:", equippedTool.Name)
+                    Library:Notify("Selling already equipped item: " .. equippedTool.Name, 2)
 
                     -- Use pcall to catch any errors
                     task.spawn(function()
@@ -1227,7 +1351,7 @@ SellGroupBox:AddToggle("AutoSell", {
                 end
             end
         else
-            Library:Notify("❌ Auto-sell on equip disabled", 2)
+            Library:Notify("Auto-sell on equip disabled", 2)
         end
     end,
 })
@@ -1385,10 +1509,10 @@ HoneyShopGroupBox:AddToggle("AutoBuyHoneyShop", {
                         end
                     end
                 end)
-                Library:Notify("🍯 Auto buy honey shop items enabled!", 2)
+                Library:Notify("Auto buy honey shop items enabled!", 2)
             else
                 Library:Notify(
-                        "⚠️ Auto buy enabled but no items selected! Use the dropdown to select items first.",
+                        "Auto buy enabled but no items selected! Use the dropdown to select items first.",
                         4
                 )
                 -- Still start the loop in case items are selected later
@@ -1399,19 +1523,19 @@ HoneyShopGroupBox:AddToggle("AutoBuyHoneyShop", {
                 end)
             end
         else
-            Library:Notify("❌ Auto buy honey shop items disabled", 2)
+            Library:Notify("Auto buy honey shop items disabled", 2)
         end
     end,
 })
 
-HoneyShopGroupBox:AddButton("💰 Check Honey Balance", function()
+HoneyShopGroupBox:AddButton("Check Honey Balance", function()
     local playerHoney = getPlayerHoney()
-    Library:Notify("🍯 Current Honey: " .. playerHoney, 3)
+    Library:Notify("Current Honey: " .. playerHoney, 3)
 end)
 
-HoneyShopGroupBox:AddButton("📦 Check Shop Stock", function()
+HoneyShopGroupBox:AddButton("Check Shop Stock", function()
     local stock = getHoneyShopStock()
-    local message = "🏪 Honey Shop Stock:\n"
+    local message = "Honey Shop Stock:\n"
     local itemCount = 0
 
     for itemName, stockData in pairs(stock) do
@@ -1419,7 +1543,7 @@ HoneyShopGroupBox:AddButton("📦 Check Shop Stock", function()
             local itemData = HoneyShopItems[itemName]
             if stockData.Stock > 0 then
                 message = message
-                        .. "✅ "
+                        .. "[In Stock] "
                         .. itemName
                         .. " ("
                         .. stockData.Stock
@@ -1458,20 +1582,20 @@ HoneyShopGroupBox:AddButton("🛒 Buy Selected Items Now", function()
                         failedCount = failedCount + 1
                     end
                 else
-                    Library:Notify("💰 Not enough honey for " .. itemName .. " (Need: " .. itemData.Price .. ")", 3)
+                    Library:Notify("Not enough honey for " .. itemName .. " (Need: " .. itemData.Price .. ")", 3)
                     failedCount = failedCount + 1
                 end
             else
-                Library:Notify("📦 " .. itemName .. " is out of stock!", 2)
+                Library:Notify(itemName .. " is out of stock!", 2)
                 failedCount = failedCount + 1
             end
         end
     end
 
     if boughtCount > 0 or failedCount > 0 then
-        Library:Notify("🛒 Purchase complete! Bought: " .. boughtCount .. ", Failed: " .. failedCount, 3)
+        Library:Notify("Purchase complete! Bought: " .. boughtCount .. ", Failed: " .. failedCount, 3)
     else
-        Library:Notify("⚠️ No items selected for purchase!", 3)
+        Library:Notify("No items selected for purchase!", 3)
     end
 end)
 
@@ -1614,7 +1738,7 @@ AutoPlantGroupBox:AddToggle("AutoPlant", {
     Callback = function(Value)
         print("[cb] Auto Plant toggled:", Value)
         if Value then
-            Library:Notify("🌱 Auto Plant enabled! Planting selected seeds...", 3)
+            Library:Notify("Auto Plant enabled! Planting selected seeds...", 3)
 
             -- Function to find and equip seed tool
             local function findAndEquipSeed(seedName)
@@ -1749,7 +1873,7 @@ AutoPlantGroupBox:AddToggle("AutoPlant", {
                 print("Auto plant loop ended")
             end)
         else
-            Library:Notify("🌱 Auto Plant disabled!", 3)
+            Library:Notify("Auto Plant disabled!", 3)
         end
     end,
 })
@@ -2061,11 +2185,11 @@ local function collectPollinatedFruits()
 
     -- Collect each fruit from pollinated plants with improved timing
     for i, fruit in pairs(pollinatedFruits) do
-        print("🍓 Collecting fruit #" .. i .. " from pollinated plant: " .. fruit.Name)
+        print("Collecting fruit #" .. i .. " from pollinated plant: " .. fruit.Name)
 
         -- Check if fruit still exists before attempting collection
         if not fruit.Parent then
-            print("⚠️ Fruit already collected or removed: " .. fruit.Name)
+            print("Fruit already collected or removed: " .. fruit.Name)
             continue
         end
 
@@ -2127,11 +2251,11 @@ local function collectAllPlants()
             break
         end
 
-        print("🌾 Collecting item #" .. i .. ": " .. item.Name)
+        print("Collecting item #" .. i .. ": " .. item.Name)
 
         -- Check if item still exists before attempting collection
         if not item.Parent then
-            print("⚠️ Item already collected or removed: " .. item.Name)
+            print("Item already collected or removed: " .. item.Name)
             continue
         end
 
@@ -2316,13 +2440,13 @@ local function autoCollectHoney()
                 if honeyData.HoneyStored > 0 then
                     -- Collect ready honey
                     if interactWithHoneyMachine() then
-                        Library:Notify("🍯 Collected " .. honeyData.HoneyStored .. " honey!", 3)
+                        Library:Notify("Collected " .. honeyData.HoneyStored .. " honey!", 3)
                         wait(0.5) -- Reduced from 1 to 0.5 seconds
                     end
                 elseif honeyData.PlantWeight >= 10 and honeyData.TimeLeft <= 0 then
                     -- Combpress plants into honey
                     if interactWithHoneyMachine() then
-                        Library:Notify("🔄 Started honey compression process!", 3)
+                        Library:Notify("Started honey compression process!", 3)
                         wait(1) -- Reduced from 2 to 1 second
                     end
                 end
@@ -2344,7 +2468,7 @@ local function autoGivePlants()
                 if honeyData.TimeLeft <= 0 and honeyData.PlantWeight < 10 and honeyData.HoneyStored <= 0 then
                     -- Try to give pollinated fruits
                     if givePlantsToHoneyMachine() then
-                        Library:Notify("🌺 Gave pollinated fruit to honey machine!", 2)
+                        Library:Notify("Gave pollinated fruit to honey machine!", 2)
                         wait(0.5) -- Reduced from 1 to 0.5 seconds
                     end
                 end
@@ -2362,19 +2486,19 @@ EventGroupBox:AddToggle("AutoCollectPollinated", {
     Callback = function(Value)
         print("[cb] Auto Collect Pollinated toggled:", Value)
         if Value then
-            Library:Notify("🍓 Auto Collect Fruits from Pollinated Plants enabled!", 3)
+            Library:Notify("Auto Collect Fruits from Pollinated Plants enabled!", 3)
             -- Start auto collection loop
             task.spawn(function()
                 while Toggles.AutoCollectPollinated.Value do
-                    print("🍓 Auto collect cycle starting...")
+                    print("Auto collect cycle starting...")
                     local pollinatedFruits = getPollinatedFruits()
 
                     if #pollinatedFruits > 0 then
-                        print("🎯 Found " .. #pollinatedFruits .. " fruits from pollinated plants to collect")
+                        print("Found " .. #pollinatedFruits .. " fruits from pollinated plants to collect")
                         collectPollinatedFruits()
                     else
-                        print("ℹ️ No fruits found on pollinated plants, waiting...")
-                        Library:Notify("🍓 No more pollinated fruits in garden!", 3)
+                        print("No fruits found on pollinated plants, waiting...")
+                        Library:Notify("No more pollinated fruits in garden!", 3)
                     end
 
                     -- Smart delay - shorter wait if fruits were found, longer if none
@@ -2388,10 +2512,10 @@ EventGroupBox:AddToggle("AutoCollectPollinated", {
                         task.wait(1)
                     end
                 end
-                print("🍓 Auto collect fruits from pollinated plants loop ended")
+                print("Auto collect fruits from pollinated plants loop ended")
             end)
         else
-            Library:Notify("🍓 Auto Collect Fruits from Pollinated Plants disabled!", 3)
+            Library:Notify("Auto Collect Fruits from Pollinated Plants disabled!", 3)
         end
     end,
 })
@@ -2472,14 +2596,14 @@ HoneyCollectionGroupBox:AddToggle("AutoGivePlants", {
 })
 
 HoneyCollectionGroupBox:AddToggle("AutoCollectHoney", {
-    Text = "🍯 Auto Collect Honey",
+    Text = "Auto Collect Honey",
     Default = false,
     Tooltip = "Automatically collects honey when ready",
 
     Callback = function(Value)
         getgenv().AutoCollectHoneyEnabled = Value
         if Value then
-            Library:Notify("🍯 Auto Collect Honey enabled!", 3)
+            Library:Notify("Auto Collect Honey enabled!", 3)
             task.spawn(function()
                 while getgenv().AutoCollectHoneyEnabled do
                     local honeyMachineData = DataService:GetData().HoneyMachine
@@ -2493,12 +2617,12 @@ HoneyCollectionGroupBox:AddToggle("AutoCollectHoney", {
                 end
             end)
         else
-            Library:Notify("🍯 Auto Collect Honey disabled!", 3)
+            Library:Notify("Auto Collect Honey disabled!", 3)
         end
     end,
 })
 
-HoneyCollectionGroupBox:AddButton("🍯 Check Honey Machine Status", function()
+HoneyCollectionGroupBox:AddButton("Check Honey Machine Status", function()
     local honeyMachineData = DataService:GetData().HoneyMachine
     if honeyMachineData then
         local timeLeft = honeyMachineData.TimeLeft
@@ -2803,12 +2927,12 @@ HoneyCrafterGroupBox:AddToggle("AutoSubmitPlant", {
                 end
             end)
         else
-            Library:Notify("🌱 Auto Submit Craft Plant disabled!", 3)
+            Library:Notify("Auto Submit Craft Plant disabled!", 3)
         end
     end,
 })
 
-HoneyCrafterGroupBox:AddButton("🔍 Check Crafter Recipe", function()
+HoneyCrafterGroupBox:AddButton("Check Crafter Recipe", function()
     local crafterData = DataService:GetData().HoneyCrafterEventData
     if crafterData and crafterData.CraftingRecipe then
         local recipe = crafterData.CraftingRecipe
@@ -2934,14 +3058,14 @@ HoneyCrafterGroupBox:AddToggle("AutoCraftComplete", {
                     end)
 
                     if not success or not crafterData then
-                        print("❌ Failed to get HoneyCrafterEventData:", crafterData)
-                        Library:Notify("❌ Couldn't access crafting data! Retrying...", 3)
+                        print("Failed to get HoneyCrafterEventData:", crafterData)
+                        Library:Notify("Couldn't access crafting data! Retrying...", 3)
                         task.wait(5)
                         continue
                     end -- First check if we need to claim a reward (both requirements met)
                     if crafterData.HoneyRequirementMet and crafterData.PlantRequirementMet then
-                        print("✅ Both honey and plant requirements met! Crafting item...")
-                        Library:Notify("✅ Crafting complete! Claiming reward...", 3) -- Teleport to honey station first for better reliability
+                        print("Both honey and plant requirements met! Crafting item...")
+                        Library:Notify("Crafting complete! Claiming reward...", 3) -- Teleport to honey station first for better reliability
                         local honeyStation = workspace:FindFirstChild("HoneyCrafter_HoneyStation", true)
                         if honeyStation then
                             -- Save player position if we don't have it yet
@@ -3006,8 +3130,8 @@ HoneyCrafterGroupBox:AddToggle("AutoCraftComplete", {
 
                     -- Submit honey if needed
                     if not crafterData.HoneyRequirementMet then
-                        print("💰 Submitting honey...")
-                        Library:Notify("💰 Submitting honey...", 2)
+                        print("Submitting honey...")
+                        Library:Notify("Submitting honey...", 2)
 
                         -- Find honey station for teleport if direct submission fails
                         local honeyStation = workspace:FindFirstChild("HoneyCrafterPrompt_Honey", true)
@@ -3076,7 +3200,7 @@ HoneyCrafterGroupBox:AddToggle("AutoCraftComplete", {
                         end)
 
                         if not success or not crafterData then
-                            print("❌ Failed to refresh crafter data")
+                            print("Failed to refresh crafter data")
                             task.wait(3)
                             continue
                         end
@@ -3924,7 +4048,7 @@ AutoFarmGroupBox:AddButton("📋 Show Selected Plants", function()
     end
 end)
 
-AutoFarmGroupBox:AddButton("🍎 Select Common Plants", function()
+AutoFarmGroupBox:AddButton("Select Common Plants", function()
     local commonPlants = {
         "Apple",
         "Banana",
@@ -3960,10 +4084,10 @@ AutoFarmGroupBox:AddButton("🗑️ Clear Plant Selection", function()
         Options.PlantsToCollect:SetValue({})
     end
 
-    Library:Notify("🗑️ Cleared all plant selections", 2)
+    Library:Notify("Cleared all plant selections", 2)
 end)
 
-AutoFarmGroupBox:AddButton("🔍 Check Farm Status", function()
+AutoFarmGroupBox:AddButton("Check Farm Status", function()
     local myFarm = getMyFarm()
     if myFarm then
         local innerFarm = myFarm:FindFirstChild("Farm")
@@ -4112,7 +4236,7 @@ end)
 
 -- Teleport to Farm button removed per user request
 
-print("Script loaded successfully!")
+-- print removed: Script loaded successfully
 
 -- Pet Tab
 -- Pet Auto Feed Functions
@@ -4497,7 +4621,7 @@ local function feedPetsWithPlants()
         local currentTool = LocalPlayer.Character:FindFirstChildWhichIsA("Tool")
         if not currentTool or not currentTool:HasTag("FruitTool") then
             print("ERROR: Failed to equip fruit", fruitData.name)
-            Library:Notify("❌ Failed to equip " .. fruitData.name, 2)
+            Library:Notify("Failed to equip " .. fruitData.name, 2)
             continue
         end
 
@@ -4869,7 +4993,7 @@ PetAutoFeedGroupBox:AddToggle("AutoFeedPets", {
             autoFeedPets()
             task.spawn(function()
                 pcall(function()
-                    Library:Notify("🐾 Auto feed pets enabled! (Only feeding pets <70% hunger)", 3)
+                    Library:Notify("Auto feed pets enabled! (Only feeding pets <70% hunger)", 3)
                 end)
             end)
         else
@@ -4882,12 +5006,12 @@ PetAutoFeedGroupBox:AddToggle("AutoFeedPets", {
     end,
 })
 
-PetAutoFeedGroupBox:AddButton("🍎 Feed Pets Now", function()
+PetAutoFeedGroupBox:AddButton("Feed Pets Now", function()
     local fedPets = feedPetsWithPlants()
     if fedPets then
-        Library:Notify("✅ Fed pets with selected plants!", 2)
+        Library:Notify("Fed pets with selected plants!", 2)
     else
-        Library:Notify("❌ No pets fed - check fruit inventory and pet selection", 3)
+        Library:Notify("No pets fed - check fruit inventory and pet selection", 3)
     end
 end)
 
@@ -5244,11 +5368,11 @@ PetInfoGroupBox:AddButton("📊 Show Active Pets", function()
     end)
 end)
 
-PetInfoGroupBox:AddButton("🍎 Show Available Fruits", function()
+PetInfoGroupBox:AddButton("Show Available Fruits", function()
     local playerFruits = getPlayerFruits()
 
     if #playerFruits > 0 then
-        local message = "🍎 Available Fruits (" .. #playerFruits .. "):\n"
+        local message = "Available Fruits (" .. #playerFruits .. "):\n"
         for i, fruit in pairs(playerFruits) do
             message = message .. i .. ". " .. fruit .. "\n"
         end
@@ -5421,13 +5545,13 @@ PetDetectionGroupBox:AddToggle("PetEggESP", {
 
 -- Player stats functionality completely removed as requested
 
-EventGroupBox:AddButton("🍓 Collect Pollinated Now", function()
+EventGroupBox:AddButton("Collect Pollinated Now", function()
     local pollinatedFruits = getPollinatedFruits()
     if #pollinatedFruits > 0 then
-        Library:Notify("🍓 Found " .. #pollinatedFruits .. " pollinated fruits! Starting collection...", 3)
+        Library:Notify("Found " .. #pollinatedFruits .. " pollinated fruits! Starting collection...", 3)
         collectPollinatedFruits()
     else
-        Library:Notify("ℹ️ No pollinated fruits found in your farm", 3)
+        Library:Notify("No pollinated fruits found in your farm", 3)
     end
 end)
 
@@ -5484,7 +5608,7 @@ local function storeOriginalValues()
         OriginalJumpPower = jumpValue or 50
         OriginalWalkSpeed = humanoid.WalkSpeed or 16
 
-        print("Stored original values - Jump:", OriginalJumpPower, "Speed:", OriginalWalkSpeed)
+        -- print removed: Stored original values
 
         -- Update the slider default to match the actual game value
         if Options.JumpPower then
@@ -5885,12 +6009,12 @@ local function sellExcludedItemsWithTeleport()
         -- Find and teleport to sell stands
         local sellStandPosition = getSellStandPosition()
         if not sellStandPosition then
-            Library:Notify("❌ Could not find Sell Stands!", 3)
+            Library:Notify("Could not find Sell Stands!", 3)
             return 0
         end
 
-        print("🚀 Teleporting to Sell Stands...")
-        Library:Notify("🚀 Teleporting to Sell Stands...", 2)
+        print("Teleporting to Sell Stands...")
+        Library:Notify("Teleporting to Sell Stands...", 2)
 
         -- Teleport to sell stands
         LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(sellStandPosition)
@@ -6159,19 +6283,19 @@ local function sellItemInHandWithTeleport()
 
         -- Teleport back to original position
         if OriginalPlayerPosition then
-            print("🔄 Teleporting back to original location...")
-            Library:Notify("🔄 Teleporting back...", 2)
+            print("Teleporting back to original location...")
+            Library:Notify("Teleporting back...", 2)
             LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(OriginalPlayerPosition + Vector3.new(0, 2, 0))
             task.wait(0.5)
         end
 
-        Library:Notify("✅ Item sold and teleported back!", 3)
+        Library:Notify("Item sold and teleported back!", 3)
         return true
     end)
 
     if not success then
-        print("❌ Error in sellItemInHandWithTeleport:", result)
-        Library:Notify("❌ Error during sell process: " .. tostring(result), 4)
+        print("Error in sellItemInHandWithTeleport:", result)
+        Library:Notify("Error during sell process: " .. tostring(result), 4)
 
         -- Try to teleport back even if there was an error
         if
@@ -6209,7 +6333,7 @@ setupAutoSellEquipMonitor = function()
         end
     end)
 
-    print("✅ Auto-sell equipment monitor set up")
+    -- print removed: Auto-sell equipment monitor set up
 end
 
 setupCharacterMonitor = function()
@@ -6748,9 +6872,9 @@ end
 
 local function MakeStockString(Stock)
     local String = ""
-    for Name, Data in pairs(Stock) do 
+    for Name, Data in pairs(Stock) do
         local Amount = Data.Stock
-        local EggName = Data.EggName 
+        local EggName = Data.EggName
 
         Name = EggName or Name
         String = String .. Name .. " **x" .. Amount .. "**\n"
@@ -6844,7 +6968,7 @@ local function ProcessPacket(Data, Type)
     local Layout = Layouts[Type]
     if not Layout then return end
 
-    for Packet, Title in pairs(Layout) do 
+    for Packet, Title in pairs(Layout) do
         local Stock = GetDataPacket(Data, Packet)
         if not Stock then return end
 
@@ -6906,6 +7030,181 @@ if ReplicatedStorage:FindFirstChild("GameEvents") and ReplicatedStorage.GameEven
     end)
 end
 
+-- Create mobile toggle button
+local function CreateMobileToggleButton()
+    local UserInputService = game:GetService("UserInputService")
+
+    -- Create ScreenGui (for all devices, but we'll only show it on mobile)
+    local MobileGui = Instance.new("ScreenGui")
+    MobileGui.Name = "NullInjectMobileGui"
+    MobileGui.ResetOnSpawn = false
+    MobileGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    -- Create toggle button
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Name = "ToggleButton"
+    ToggleButton.Size = UDim2.new(0, 70, 0, 70) -- Larger button for easier tapping
+    ToggleButton.Position = UDim2.new(0, 20, 0.5, -35) -- Adjusted position
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60) -- Slightly darker for better visibility
+    ToggleButton.BorderColor3 = Color3.fromRGB(100, 100, 100) -- Brighter border
+    ToggleButton.BorderSizePixel = 3 -- Thicker border
+    ToggleButton.Text = "MENU" -- More descriptive text
+    ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.TextSize = 20 -- Larger text
+    ToggleButton.Font = Enum.Font.GothamBold
+
+    -- Only show the button on mobile devices
+    ToggleButton.Visible = UserInputService.TouchEnabled
+
+    ToggleButton.Parent = MobileGui
+
+    -- Create corner to make button rounded
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 10)
+    Corner.Parent = ToggleButton
+
+    -- Add shadow effect with enhanced visibility
+    local Shadow = Instance.new("ImageLabel")
+    Shadow.Name = "Shadow"
+    Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+    Shadow.BackgroundTransparency = 1
+    Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Shadow.Size = UDim2.new(1, 15, 1, 15) -- Larger shadow
+    Shadow.ZIndex = -1
+    Shadow.Image = "rbxassetid://5554236805"
+    Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    Shadow.ImageTransparency = 0.5 -- Less transparent for better visibility
+    Shadow.ScaleType = Enum.ScaleType.Slice
+    Shadow.SliceCenter = Rect.new(23, 23, 277, 277)
+    Shadow.Parent = ToggleButton
+
+    -- Add a label to indicate this is for mobile
+    local MobileLabel = Instance.new("TextLabel")
+    MobileLabel.Name = "MobileLabel"
+    MobileLabel.Size = UDim2.new(0, 100, 0, 20)
+    MobileLabel.Position = UDim2.new(0.5, -50, 1, 5) -- Position below the button
+    MobileLabel.BackgroundTransparency = 1
+    MobileLabel.Text = "Mobile Menu"
+    MobileLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    MobileLabel.TextSize = 14
+    MobileLabel.Font = Enum.Font.GothamSemibold
+    MobileLabel.Visible = UserInputService.TouchEnabled -- Only visible on mobile
+    MobileLabel.Parent = ToggleButton
+
+    -- Make button draggable
+    local Dragging = false
+    local DragStart = nil
+    local StartPos = nil
+
+    ToggleButton.MouseButton1Down:Connect(function(x, y)
+        Dragging = true
+        DragStart = Vector2.new(x, y)
+        StartPos = ToggleButton.Position
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if Dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local Delta = input.Position - DragStart
+            ToggleButton.Position = UDim2.new(
+                StartPos.X.Scale, 
+                StartPos.X.Offset + Delta.X, 
+                StartPos.Y.Scale, 
+                StartPos.Y.Offset + Delta.Y
+            )
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            Dragging = false
+        end
+    end)
+
+    -- Toggle UI when button is clicked
+    ToggleButton.MouseButton1Click:Connect(function()
+        -- Simulate pressing the MenuKeybind (RightShift)
+        local VirtualInputManager = game:GetService("VirtualInputManager")
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.RightShift, false, game)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.RightShift, false, game)
+
+        -- Visual feedback
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        wait(0.1)
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    end)
+
+    -- Parent the ScreenGui to the appropriate location
+    -- Always create the GUI regardless of device, but only show button on mobile
+    if syn and syn.protect_gui then
+        syn.protect_gui(MobileGui)
+        MobileGui.Parent = game:GetService("CoreGui")
+    elseif gethui then
+        MobileGui.Parent = gethui()
+    else
+        -- Try CoreGui first
+        local success, result = pcall(function()
+            MobileGui.Parent = game:GetService("CoreGui")
+            return true
+        end)
+
+        -- If CoreGui fails, try PlayerGui as fallback
+        if not success then
+            if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") then
+                MobileGui.Parent = LocalPlayer.PlayerGui
+            end
+        end
+    end
+
+    -- Print debug info about mobile detection
+    print("Mobile device detected: " .. tostring(UserInputService.TouchEnabled))
+    print("Mobile button created and visibility set to: " .. tostring(ToggleButton.Visible))
+
+    return MobileGui
+end
+
+-- Create mobile toggle button when script loads
+spawn(function()
+    print("Starting mobile UI initialization...")
+    wait(1) -- Wait for UI to initialize
+
+    -- Check if we're on a mobile device
+    local UserInputService = game:GetService("UserInputService")
+    local isMobile = UserInputService.TouchEnabled
+
+    print("Device check - Mobile device: " .. tostring(isMobile))
+
+    -- Create the mobile toggle button
+    local mobileButton = CreateMobileToggleButton()
+
+    -- Additional visibility check after creation
+    if mobileButton then
+        print("Mobile UI created successfully!")
+
+        -- Force update visibility after a short delay
+        wait(0.5)
+        if mobileButton:FindFirstChild("ToggleButton") then
+            local button = mobileButton.ToggleButton
+            button.Visible = isMobile
+            print("Final mobile button visibility set to: " .. tostring(button.Visible))
+
+            -- Show notification for mobile users
+            if isMobile then
+                -- Use both notification methods for maximum visibility
+                Library:Notify("Mobile UI enabled! Tap the MENU button on the left side to toggle the interface.", 10)
+
+                -- Also use Roblox's built-in notification system
+                StarterGui:SetCore("SendNotification", {
+                    Title = "Mobile UI Enabled",
+                    Text = "Tap the MENU button on the left side to toggle the interface.",
+                    Duration = 10,
+                })
+            end
+        end
+    else
+        print("Failed to create mobile UI!")
+    end
+end)
+
 -- Anti idle
 LocalPlayer.Idled:Connect(function()
     -- Check if Anti-AFK is enabled
@@ -6916,7 +7215,7 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:CaptureController()
     VirtualUser:ClickButton2(Vector2.new())
 
-    Library:Notify("🛡️ Anti-AFK prevented kick", 2)
+    Library:Notify("Anti-AFK prevented kick", 2)
 end)
 
 -- Auto reconnect
@@ -6956,21 +7255,20 @@ WebHookConfigGroupBox:AddButton("Test Webhook", function()
         }
     })
 
-    Library:Notify("🧪 Test webhook sent!", 2)
+    Library:Notify("Test webhook sent!", 2)
 end)
 
 -- UI Management
-Library:SetWatermarkVisibility(true)
+-- Library:SetWatermarkVisibility(true) -- Commented out due to missing method
 
 -- Initialize ThemeManager (Required)
 ThemeManager:SetLibrary(Library)
 ThemeManager:SetFolder("MyScriptHub")
-ThemeManager:ApplyToTab(Tabs.Settings)
+ThemeManager:ApplyToTab(Tabs["UI Settings"])
 
 -- Initialize SaveManager (Required)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetFolder("MyScriptHub/specific-game")
-SaveManager:BuildConfigSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs["UI Settings"])
 SaveManager:LoadAutoloadConfig()
-
