@@ -9,6 +9,9 @@ local TweenService = game:GetService("TweenService")
 local KEYS_FILE = "keys.txt"
 local SCRIPT_FILE = "Nullinject.lua"
 
+-- GitHub repository URL for online loading
+local GITHUB_RAW_URL = "https://raw.githubusercontent.com/rephra/NullInject-Hub/main/Nullinject.lua"
+
 -- Valid keys array (can be updated directly here)
 local VALID_KEYS = {
     "REPHRA-2024-PREMIUM",
@@ -20,34 +23,139 @@ local VALID_KEYS = {
 
 local gui = nil
 
+-- Debug function to check environment
+local function checkEnvironment()
+    print("=== NullInject Environment Check ===")
+    print("readfile available:", readfile ~= nil)
+    print("isfile available:", isfile ~= nil)
+    print("loadstring available:", loadstring ~= nil)
+    print("HttpService available:", game:GetService("HttpService") ~= nil)
+    
+    if readfile and isfile then
+        print("Checking local files:")
+        print("- " .. SCRIPT_FILE .. " exists:", isfile(SCRIPT_FILE))
+        print("- " .. KEYS_FILE .. " exists:", isfile(KEYS_FILE))
+    else
+        print("File system functions not available in this executor")
+    end
+    
+    print("Current workspace:", game:GetService("Workspace").Name)
+    print("================================")
+end
+
 -- Create modern key system GUI
 local function createKeyGUI()
+    -- Run environment check for debugging
+    checkEnvironment()
+    
     if gui then gui:Destroy() end
 
     -- Load main script function
     local function loadMainScript()
-        local success, result = pcall(function()
-            -- Try to read local file first
-            if readfile and isfile(SCRIPT_FILE) then
-                return readfile(SCRIPT_FILE)
-            else
-                -- Fallback message if local file is not available
-                warn("NullInject Premium: Main script file not found locally")
-                return nil
-            end
-        end)
+        print("NullInject Premium: Attempting to load main script...")
         
-        if success and result then
-            local loadSuccess, loadResult = pcall(function()
-                return loadstring(result)()
+        local scriptContent = nil
+        local loadMethod = "unknown"
+        
+        -- Method 1: Try to read local file using readfile
+        if not scriptContent then
+            local success, result = pcall(function()
+                if readfile and isfile and isfile(SCRIPT_FILE) then
+                    return readfile(SCRIPT_FILE)
+                end
+                return nil
             end)
-            if not loadSuccess then
-                warn("NullInject Premium: Error loading main script - " .. tostring(loadResult))
+            
+            if success and result and result ~= "" then
+                scriptContent = result
+                loadMethod = "local file"
+                print("NullInject Premium: Script loaded from local file")
+            end
+        end
+        
+        -- Method 2: Try to load from GitHub
+        if not scriptContent then
+            local success, result = pcall(function()
+                local HttpService = game:GetService("HttpService")
+                return HttpService:GetAsync(GITHUB_RAW_URL)
+            end)
+            
+            if success and result and result ~= "" then
+                scriptContent = result
+                loadMethod = "GitHub repository"
+                print("NullInject Premium: Script loaded from GitHub repository")
             else
-                print("NullInject Premium: Script loaded successfully!")
+                warn("NullInject Premium: Failed to load from GitHub - " .. tostring(result))
+            end
+        end
+        
+        -- Method 3: Try alternative local loading
+        if not scriptContent then
+            local success, result = pcall(function()
+                -- Try different approaches to load the script
+                local workspace = game:GetService("Workspace")
+                local scriptService = game:GetService("ServerScriptService")
+                
+                -- Look for the script in various locations
+                local possiblePaths = {
+                    "./Nullinject.lua",
+                    "Nullinject.lua",
+                    "/workspaces/NullInject-Hub/Nullinject.lua"
+                }
+                
+                for _, path in ipairs(possiblePaths) do
+                    if readfile and isfile and isfile(path) then
+                        return readfile(path)
+                    end
+                end
+                
+                return nil
+            end)
+            
+            if success and result and result ~= "" then
+                scriptContent = result
+                loadMethod = "alternative local method"
+                print("NullInject Premium: Script loaded using alternative local method")
+            end
+        end
+        
+        -- Execute the script
+        if scriptContent then
+            local loadSuccess, loadResult = pcall(function()
+                return loadstring(scriptContent)()
+            end)
+            
+            if loadSuccess then
+                print("NullInject Premium: Script executed successfully using " .. loadMethod)
+            else
+                warn("NullInject Premium: Error executing script - " .. tostring(loadResult))
+                
+                -- Show user-friendly error
+                if gui and gui.Parent then
+                    local mainFrame = gui:FindFirstChild("MainFrame")
+                    if mainFrame then
+                        local statusLabel = mainFrame:FindFirstChild("StatusLabel")
+                        if statusLabel then
+                            statusLabel.Text = "❌ Script execution error. Check console."
+                            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+                        end
+                    end
+                end
             end
         else
-            warn("NullInject Premium: Failed to load main script")
+            warn("NullInject Premium: Failed to load main script from any source")
+            
+            -- Show user-friendly error with suggestions
+            if gui and gui.Parent then
+                local mainFrame = gui:FindFirstChild("MainFrame")
+                if mainFrame then
+                    local statusLabel = mainFrame:FindFirstChild("StatusLabel")
+                    if statusLabel then
+                        statusLabel.Text = "❌ Script not found. Check file location or internet connection."
+                        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+                    end
+                end
+            end
         end
     end
 
@@ -287,8 +395,18 @@ local function createKeyGUI()
                 validateButton.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
                 
                 wait(1)
-                gui:Destroy()
-                loadMainScript()
+                
+                -- Don't destroy GUI immediately in case we need to show error messages
+                updateStatus("🔄 Loading main script...", Color3.fromRGB(100, 200, 255))
+                
+                spawn(function()
+                    loadMainScript()
+                    -- Only destroy GUI after successful load
+                    wait(2)
+                    if gui and gui.Parent then
+                        gui:Destroy()
+                    end
+                end)
             else
                 updateStatus("❌ Invalid key! Please try again.")
                 validateButton.Text = "VALIDATE KEY"
