@@ -5,9 +5,18 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 
--- Configuration URLs
-local KEYS_URL = "https://raw.githubusercontent.com/Rephra/NullInject-Hub/main/keys.txt"
-local SCRIPT_URL = "https://raw.githubusercontent.com/Rephra/NullInject-Hub/main/Nullinject.lua"
+-- Local file paths for offline mode
+local KEYS_FILE = "keys.txt"
+local SCRIPT_FILE = "Nullinject.lua"
+
+-- Valid keys array (can be updated directly here)
+local VALID_KEYS = {
+    "REPHRA-2024-PREMIUM",
+    "TEST-KEY-12345", 
+    "DISCORD-MEMBER-VIP",
+    "GITHUB-SUPPORTER-001",
+    "EARLY-ACCESS-2024"
+}
 
 local gui = nil
 
@@ -18,18 +27,27 @@ local function createKeyGUI()
     -- Load main script function
     local function loadMainScript()
         local success, result = pcall(function()
-            return HttpService:GetAsync(SCRIPT_URL)
+            -- Try to read local file first
+            if readfile and isfile(SCRIPT_FILE) then
+                return readfile(SCRIPT_FILE)
+            else
+                -- Fallback message if local file is not available
+                warn("NullInject Premium: Main script file not found locally")
+                return nil
+            end
         end)
         
-        if success then
+        if success and result then
             local loadSuccess, loadResult = pcall(function()
                 return loadstring(result)()
             end)
             if not loadSuccess then
                 warn("NullInject Premium: Error loading main script - " .. tostring(loadResult))
+            else
+                print("NullInject Premium: Script loaded successfully!")
             end
         else
-            warn("NullInject Premium: Failed to fetch main script - " .. tostring(result))
+            warn("NullInject Premium: Failed to load main script")
         end
     end
 
@@ -226,42 +244,56 @@ local function createKeyGUI()
         validateButton.Text = "VALIDATING..."
         validateButton.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
 
-        -- Fetch and validate from GitHub
+        -- Validate locally with fallback to file reading
         spawn(function()
-            local success, result = pcall(function()
-                return HttpService:GetAsync(KEYS_URL)
-            end)
+            local success = false
+            local found = false
+            
+            -- First try validating against local VALID_KEYS array
+            for _, validKey in ipairs(VALID_KEYS) do
+                if validKey:upper() == enteredKey:upper() then
+                    found = true
+                    success = true
+                    break
+                end
+            end
+            
+            -- If not found in array, try reading from local file
+            if not found then
+                local fileSuccess, fileResult = pcall(function()
+                    if readfile and isfile(KEYS_FILE) then
+                        return readfile(KEYS_FILE)
+                    end
+                    return nil
+                end)
+                
+                if fileSuccess and fileResult then
+                    for key in fileResult:gmatch("[^\r\n]+") do
+                        key = key:gsub("%s+", ""):gsub("#.*", "") -- Remove whitespace and comments
+                        if key ~= "" and key:upper() == enteredKey:upper() then
+                            found = true
+                            success = true
+                            break
+                        end
+                    end
+                end
+            end
 
             wait(1) -- Show validation animation
 
-            if success then
-                local found = false
-                for key in result:gmatch("[^\r\n]+") do
-                    key = key:gsub("%s+", "")
-                    if key:upper() == enteredKey:upper() then
-                        found = true
-                        break
-                    end
-                end
+            if success and found then
+                updateStatus("✅ Key validated! Loading script...", Color3.fromRGB(100, 255, 100))
+                validateButton.Text = "SUCCESS"
+                validateButton.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
                 
-                if found then
-                    updateStatus("✅ Key validated! Loading script...", Color3.fromRGB(100, 255, 100))
-                    validateButton.Text = "SUCCESS"
-                    validateButton.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
-                    
-                    wait(1)
-                    gui:Destroy()
-                    loadMainScript()
-                else
-                    updateStatus("❌ Invalid key! Please try again.")
-                    validateButton.Text = "VALIDATE KEY"
-                    validateButton.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-                    keyInput.Text = ""
-                end
+                wait(1)
+                gui:Destroy()
+                loadMainScript()
             else
-                updateStatus("❌ Connection failed. Please check your internet connection.")
+                updateStatus("❌ Invalid key! Please try again.")
                 validateButton.Text = "VALIDATE KEY"
                 validateButton.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+                keyInput.Text = ""
             end
         end)
     end
