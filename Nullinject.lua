@@ -5442,10 +5442,11 @@ PetDetectionGroupBox:AddToggle("PetEggESP", {
                     label.Size = UDim2.new(1, 0, 1, 0)
                     label.BackgroundTransparency = 1
                     label.Text = text
-                    label.TextColor3 = Color3.new(1, 1, 1)
+                    label.TextColor3 = Color3.new(0, 1, 1) -- Changed to cyan color
                     label.TextStrokeTransparency = 0
+                    label.TextStrokeColor3 = Color3.new(0, 0.5, 0.5) -- Added stroke color
                     label.TextScaled = true
-                    label.Font = Enum.Font.SourceSansBold
+                    label.Font = Enum.Font.Gotham -- Changed to Gotham font
 
                     billboard.Parent = object
                     return billboard
