@@ -3832,23 +3832,8 @@ local function restoreCharacterPhysics()
     end)
 end
 
--- Variable to track collection method preference
-local useFastCollectionMethod = true
-
-AutoFarmGroupBox:AddToggle("UseFastCollection", {
-    Text = "Use Fast Collection Method",
-    Tooltip = "Toggle between fast PickupSound method (ON) and traditional proximity prompt method (OFF)",
-    Default = true,
-
-    Callback = function(Value)
-        useFastCollectionMethod = Value
-        if Value then
-            Library:Notify("⚡ Fast collection method enabled", 2)
-        else
-            Library:Notify("🐌 Traditional collection method enabled", 2)
-        end
-    end,
-})
+-- Collection method is now fixed to traditional method
+-- Fast collection method has been removed
 
 -- Plant selection dropdown for auto farm
 AutoFarmGroupBox:AddDropdown("PlantsToCollect", {
@@ -3934,7 +3919,7 @@ AutoFarmGroupBox:AddToggle("AutoCollectAllPlants", {
         print("[cb] Auto Collect All Plants toggled:", Value)
         AutoCollectPlantsEnabled = Value
         if Value then
-            local methodText = useFastCollectionMethod and "(Fast PickupSound Method)" or "(Traditional Method)"
+            local methodText = "(Traditional Method)" -- Fast collection method has been removed
 
             -- Check if any plants are selected
             local selectedCount = 0
@@ -3959,8 +3944,10 @@ AutoFarmGroupBox:AddToggle("AutoCollectAllPlants", {
                 while AutoCollectPlantsEnabled do
                     if AutoCollectPlantsEnabled then -- Double check before starting collection
                         -- Choose collection method based on preference
-                        if useFastCollectionMethod then
-                            -- Fast collection using E key spam method
+                        -- Fast collection method has been removed
+                        -- Always use traditional method
+                        if false then
+                            -- This code is never executed
                             local fastCollectionSuccess = pcall(function()
                                 print("🚀 Starting FAST collection using E key spam...")
 
