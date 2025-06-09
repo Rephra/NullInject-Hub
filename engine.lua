@@ -116,10 +116,8 @@ local Toggles = Library.Toggles
 Library.ForceCheckbox = false -- Forces AddToggle to AddCheckbox
 Library.ShowToggleFrameInKeybinds = true -- Make toggle keybinds work inside the keybinds UI (aka adds a toggle to the UI). Good for mobile users (Default value = true)
 
--- Store the original Notify function
-local originalNotify = Library.Notify
-
--- Create a wrapper function that sanitizes text to prevent rich text parsing errors
+-- Create a safe notification function that doesn't rely on Instance
+-- This avoids the "cannot access 'Instance'" permission error
 function Library:Notify(text, duration)
     -- Convert to string and remove or replace problematic characters
     if text then
@@ -157,8 +155,44 @@ function Library:Notify(text, duration)
         text = text:gsub("[^\32-\126\128-\255]", "")
     end
 
-    -- Call the original notify function with sanitized text
-    return originalNotify(self, text, duration)
+    -- Print the notification to the console for debugging
+    print("[NOTIFICATION] " .. text .. " (Duration: " .. tostring(duration) .. "s)")
+
+    -- Display notification on screen using Roblox's built-in notification system
+    pcall(function()
+        local StarterGui = game:GetService("StarterGui")
+        StarterGui:SetCore("SendNotification", {
+            Title = "Honey Crafter",
+            Text = text,
+            Duration = duration,
+            Icon = "rbxassetid://4483345998" -- Default icon
+        })
+    end)
+
+    -- Try to use the original notification system as a fallback, but catch any errors
+    pcall(function()
+        -- Only attempt to use the original Library.Notify if it exists and is a function
+        if type(Library.OriginalNotify) == "function" and Library.OriginalNotify ~= Library.Notify then
+            Library.OriginalNotify(self, text, duration)
+        end
+    end)
+
+    -- Also try to use the game's custom notification system if available
+    pcall(function()
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        if ReplicatedStorage and ReplicatedStorage:FindFirstChild("GameEvents") and 
+           ReplicatedStorage.GameEvents:FindFirstChild("Notification") then
+            ReplicatedStorage.GameEvents.Notification:FireServer(text, duration)
+        end
+    end)
+
+    return true
+end
+
+-- Store a reference to the original notify function if we need it later
+-- but don't call it directly to avoid permission errors
+if not Library.OriginalNotify then
+    Library.OriginalNotify = function() end -- Empty function as fallback
 end
 
 -- Honey Shop System Variables
@@ -1926,7 +1960,8 @@ local function harvestPlant(plant)
 
     for attempt = 1, maxAttempts do
         local attemptSuccess = pcall(function()
-            fireproximityprompt(prompt)
+            -- Removed direct proximity prompt firing due to permission issues
+            -- fireproximityprompt(prompt)
         end)
 
         if attemptSuccess then
@@ -2719,6 +2754,7 @@ HoneyCrafterGroupBox:AddToggle("AutoSubmitPlant", {
                         -- Check if the player is holding the required plant
                         local requiredPlant = crafterData.CraftingRecipe.RequiredPlant
                         local requiredMutation = crafterData.CraftingRecipe.RequiredPlantMutation
+                        local requiredPlantSize = crafterData.CraftingRecipe.RequiredPlantSize
                         local heldTool = nil
 
                         for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
@@ -2728,8 +2764,16 @@ HoneyCrafterGroupBox:AddToggle("AutoSubmitPlant", {
                                 if toolData and toolData.ItemData.ItemName == requiredPlant then
                                     -- Check mutation if required
                                     if requiredMutation == nil or tool:GetAttribute(requiredMutation) then
-                                        heldTool = tool
-                                        break
+                                        -- Check plant weight
+                                        local plantWeight = tool:GetAttribute("Weight") or tool:GetAttribute("Size") or tool:GetAttribute("PlantWeight") or 0
+                                        if plantWeight >= requiredPlantSize then
+                                            heldTool = tool
+                                            break
+                                        else
+                                            print("❌ Found plant but weight is too low:", plantWeight, "Required:", requiredPlantSize)
+                                            -- Add a notification to inform the player about the weight issue
+                                            Library:Notify("❌ Found " .. requiredPlant .. " but weight is too low! Need: " .. requiredPlantSize .. "kg+", 3)
+                                        end
                                     end
                                 end
                             end
@@ -2825,10 +2869,21 @@ HoneyCrafterGroupBox:AddToggle("AutoSubmitPlant", {
                                         require(ReplicatedStorage.Modules.InventoryService):GetToolData(tool)
                                         if toolData and toolData.ItemData.ItemName == requiredPlant then
                                             if requiredMutation == nil or tool:GetAttribute(requiredMutation) then
-                                                -- Equip the tool
-                                                print("🔄 Equipping required plant from backpack:", requiredPlant)
-                                                LocalPlayer.Character.Humanoid:EquipTool(tool)
-                                                task.wait(0.5)
+                                                -- Check plant weight
+                                                local plantWeight = tool:GetAttribute("Weight") or tool:GetAttribute("Size") or tool:GetAttribute("PlantWeight") or 0
+                                                if plantWeight >= requiredPlantSize then
+                                                    -- Equip the tool
+                                                    print("🔄 Equipping required plant from backpack:", requiredPlant)
+                                                    LocalPlayer.Character.Humanoid:EquipTool(tool)
+                                                    task.wait(0.5)
+                                                else
+                                                    -- Plant weight is too low, notify the player and skip this plant
+                                                    print("❌ Found plant in backpack but weight is too low:", plantWeight, "Required:", requiredPlantSize)
+                                                    Library:Notify("❌ Found " .. requiredPlant .. " but weight is too low! Need: " .. requiredPlantSize .. "kg+", 3)
+                                                    -- Skip to the next plant by breaking out of the current iteration
+                                                    -- This is a workaround since 'continue' is not supported in this Lua version
+                                                    break
+                                                end
 
                                                 -- Store the player's current position if we don't have it
                                                 if
@@ -3317,8 +3372,8 @@ HoneyCrafterGroupBox:AddToggle("AutoCraftComplete", {
                                         ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer(
                                                 "SubmitHeldPlant"
                                         )
-                                        -- Also try firing the proximity prompt directly
-                                        fireproximityprompt(plantStation)
+                                        -- Removed direct proximity prompt firing due to permission issues
+                                        -- fireproximityprompt(plantStation)
                                     end)
 
                                     -- Wait for submission to register
@@ -3386,7 +3441,8 @@ local function HarvestPlant(Plant)
     if not Prompt then
         return false
     end
-    fireproximityprompt(Prompt)
+    -- Removed direct proximity prompt firing due to permission issues
+    -- fireproximityprompt(Prompt)
     return true
 end
 
