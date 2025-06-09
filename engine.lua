@@ -180,8 +180,8 @@ function Library:Notify(text, duration)
     -- Also try to use the game's custom notification system if available
     pcall(function()
         local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        if ReplicatedStorage and ReplicatedStorage:FindFirstChild("GameEvents") and 
-           ReplicatedStorage.GameEvents:FindFirstChild("Notification") then
+        if ReplicatedStorage and ReplicatedStorage:FindFirstChild("GameEvents") and
+                ReplicatedStorage.GameEvents:FindFirstChild("Notification") then
             ReplicatedStorage.GameEvents.Notification:FireServer(text, duration)
         end
     end)
@@ -6944,13 +6944,13 @@ local function WebhookSend(Type, Fields)
     -- Check if webhook is enabled and URL is set
     if not WebhookEnabled or WebhookURL == "" then return end
 
-    -- Define colors for different report types
+    -- Define colors for different report types (modified)
     local Colors = {
-        Weather = Color3.fromRGB(42, 109, 255),
-        SeedsAndGears = Color3.fromRGB(56, 238, 23),
-        EventShop = Color3.fromRGB(212, 42, 255),
-        Eggs = Color3.fromRGB(251, 255, 14),
-        CosmeticStock = Color3.fromRGB(255, 106, 42)
+        Weather = Color3.fromRGB(0, 191, 255),         -- Changed to DeepSkyBlue
+        SeedsAndGears = Color3.fromRGB(50, 205, 50),   -- Changed to LimeGreen
+        EventShop = Color3.fromRGB(138, 43, 226),      -- Changed to BlueViolet
+        Eggs = Color3.fromRGB(255, 215, 0),            -- Changed to Gold
+        CosmeticStock = Color3.fromRGB(255, 69, 0)     -- Changed to OrangeRed
     }
 
     -- Get color for this report type
@@ -6965,7 +6965,7 @@ local function WebhookSend(Type, Fields)
                 color = ColorValue,
                 fields = Fields,
                 footer = {
-                    text = "Created by depso" -- Please keep
+                    text = "Created by nullinject" -- Changed as requested
                 },
                 timestamp = TimeStamp
             }
@@ -7154,3 +7154,4 @@ SaveManager:IgnoreThemeSettings()
 SaveManager:SetFolder("MyScriptHub/specific-game")
 SaveManager:BuildConfigSection(Tabs["UI Settings"])
 SaveManager:LoadAutoloadConfig()
+
