@@ -117,75 +117,8 @@ local Toggles = Library.Toggles
 Library.ForceCheckbox = false -- Forces AddToggle to AddCheckbox
 Library.ShowToggleFrameInKeybinds = true -- Make toggle keybinds work inside the keybinds UI (aka adds a toggle to the UI). Good for mobile users (Default value = true)
 
--- Create a safe notification function that doesn't rely on Instance
--- This avoids the "cannot access 'Instance'" permission error
-function Library:Notify(text, duration)
-    -- Convert to string and remove or replace problematic characters
-    if text then
-        text = tostring(text)
-
-        -- Replace common emoji characters with text equivalents
-        text = text:gsub("🍯", "[Honey]")
-        text = text:gsub("🌱", "[Plant]")
-        text = text:gsub("🍓", "[Fruit]")
-        text = text:gsub("🚜", "[Tractor]")
-        text = text:gsub("✅", "[OK]")
-        text = text:gsub("❌", "[X]")
-        text = text:gsub("⚠️", "[Warning]")
-        text = text:gsub("🔄", "[Refresh]")
-        text = text:gsub("💰", "[Money]")
-        text = text:gsub("🚀", "[Rocket]")
-        text = text:gsub("🔍", "[Search]")
-        text = text:gsub("🦘", "[Jump]")
-        text = text:gsub("🛡️", "[Shield]")
-        text = text:gsub("🧪", "[Test]")
-        text = text:gsub("📦", "[Box]")
-        text = text:gsub("🛒", "[Cart]")
-        text = text:gsub("ℹ️", "[Info]")
-        text = text:gsub("🌺", "[Flower]")
-        text = text:gsub("⚡", "[Fast]")
-        text = text:gsub("🐌", "[Slow]")
-        text = text:gsub("🎯", "[Target]")
-        text = text:gsub("🍎", "[Apple]")
-        text = text:gsub("🗑️", "[Trash]")
-        text = text:gsub("🟢", "[Green]")
-        text = text:gsub("🟡", "[Yellow]")
-        text = text:gsub("🔴", "[Red]")
-
-        -- Remove any remaining emoji or special characters that might cause parsing issues
-        text = text:gsub("[^\32-\126\128-\255]", "")
-    end
-
-    -- Print the notification to the console for debugging
-    print("[NOTIFICATION] " .. text .. " (Duration: " .. tostring(duration) .. "s)")
-
-    -- Removed Roblox's built-in notification system as requested
-
-    -- Try to use the original notification system as a fallback, but catch any errors
-    pcall(function()
-        -- Only attempt to use the original Library.Notify if it exists and is a function
-        if type(Library.OriginalNotify) == "function" and Library.OriginalNotify ~= Library.Notify then
-            Library.OriginalNotify(self, text, duration)
-        end
-    end)
-
-    -- Also try to use the game's custom notification system if available
-    pcall(function()
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        if ReplicatedStorage and ReplicatedStorage:FindFirstChild("GameEvents") and
-                ReplicatedStorage.GameEvents:FindFirstChild("Notification") then
-            ReplicatedStorage.GameEvents.Notification:FireServer(text, duration)
-        end
-    end)
-
-    return true
-end
-
--- Store a reference to the original notify function if we need it later
--- but don't call it directly to avoid permission errors
-if not Library.OriginalNotify then
-    Library.OriginalNotify = function() end -- Empty function as fallback
-end
+-- The Obsidian Library will provide its own notification system
+-- No need to override Library:Notify - let the original Obsidian implementation handle it
 
 -- Honey Shop System Variables
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
