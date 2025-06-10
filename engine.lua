@@ -6351,23 +6351,6 @@ if autoSellEnabled then
 	print("✅ Auto-sell was enabled from saved settings")
 end
 
--- UI Library configuration
-getgenv().Library = Library
-getgenv().ThemeManager = ThemeManager
-getgenv().SaveManager = SaveManager
-
-ThemeManager:SetLibrary(Library)
-SaveManager:SetLibrary(Library)
-
-ThemeManager:SetFolder("GrowAGarden")
-SaveManager:SetFolder("GrowAGarden/autoplant")
-
-SaveManager:BuildConfigSection(Tabs["UI Settings"])
-
-ThemeManager:ApplyToTab(Tabs["UI Settings"])
-
-SaveManager:LoadAutoloadConfig()
-
 -- Dupe Tab (PATCHED)
 local dupe_enabled = false
 
@@ -7103,18 +7086,3 @@ WebHookConfigGroupBox:AddButton("Test Webhook", function()
 
 	Library:Notify("✅ Nullinject Webhook test report sent!", 2)
 end)
-
--- UI Management
--- Library:SetWatermarkVisibility(true) -- Commented out due to missing method
-
--- Initialize ThemeManager (Required)
-ThemeManager:SetLibrary(Library)
-ThemeManager:SetFolder("MyScriptHub")
-ThemeManager:ApplyToTab(Tabs["UI Settings"])
-
--- Initialize SaveManager (Required)
-SaveManager:SetLibrary(Library)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetFolder("MyScriptHub/specific-game")
-SaveManager:BuildConfigSection(Tabs["UI Settings"])
-SaveManager:LoadAutoloadConfig()
