@@ -3362,13 +3362,66 @@ end
 
 local function HarvestPlant(Plant)
     local Prompt = Plant:FindFirstChild("ProximityPrompt", true)
-    -- Check if it can be harvested
     if not Prompt then
         return false
     end
-    -- Removed direct proximity prompt firing due to permission issues
-    -- fireproximityprompt(Prompt)
-    return true
+
+    -- Ensure we have a character and root part
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return false
+    end
+
+    -- Get optimal position near the plant
+    local plantPosition = Plant:GetPivot().Position
+    local optimalPosition = plantPosition + Vector3.new(0, 2, 0) -- Position directly above the plant
+
+    -- Teleport to optimal position for collection
+    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(optimalPosition)
+    task.wait(0.5) -- Wait for teleport to register properly
+
+    -- Get even closer to ensure proximity trigger
+    local closePosition = plantPosition + Vector3.new(0, 0.5, 0)
+    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(closePosition)
+    task.wait(0.3) -- Additional wait for proximity to activate
+
+    -- Check if prompt is still enabled after positioning
+    if not Prompt.Enabled then
+        return false
+    end
+
+    -- Try fireproximityprompt multiple times for better reliability
+    local success = false
+    local maxAttempts = 3
+
+    for attempt = 1, maxAttempts do
+        local attemptSuccess = pcall(function()
+            fireproximityprompt(Prompt)
+        end)
+
+        if attemptSuccess then
+            task.wait(0.3) -- Wait for collection to process
+
+            -- Check if the plant/fruit still exists (successful collection removes it)
+            if not Plant.Parent then
+                success = true
+                break
+            end
+        end
+
+        -- If not successful and not the last attempt, try repositioning
+        if not success and attempt < maxAttempts then
+            local retryPosition = plantPosition + Vector3.new(0.2, 0.3, 0.2)
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(retryPosition)
+            task.wait(0.2)
+        end
+    end
+
+    -- Final check - if plant is gone, collection was successful
+    if not Plant.Parent then
+        success = true
+    end
+
+    return success
 end
 
 local function CollectHarvestable(Parent, Plants, IgnoreDistance)
