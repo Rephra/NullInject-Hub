@@ -1,7 +1,7 @@
--- Universal Aimbot Loader
+-- Garden Growth System Loader
 -- Simple and reliable loader with GUI
 
-print("🎯 Universal Aimbot Loader Starting...")
+print("🌱 Garden Growth System Starting...")
 
 -- Configuration
 local CONFIG = {
@@ -21,7 +21,7 @@ local LocalPlayer = Players.LocalPlayer
 local function createLoaderGUI()
     -- Create ScreenGui
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "AimbotLoader"
+    screenGui.Name = "GardenLoader"
     screenGui.ResetOnSpawn = false
     screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
     
@@ -30,7 +30,7 @@ local function createLoaderGUI()
     mainFrame.Name = "MainFrame"
     mainFrame.Size = UDim2.new(0, 400, 0, 250)
     mainFrame.Position = UDim2.new(0.5, -200, 0.5, -125)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 45, 25)
     mainFrame.BorderSizePixel = 0
     mainFrame.Parent = screenGui
     
@@ -41,7 +41,7 @@ local function createLoaderGUI()
     
     -- Add stroke
     local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(60, 60, 80)
+    stroke.Color = Color3.fromRGB(60, 120, 60)
     stroke.Thickness = 2
     stroke.Parent = mainFrame
     
@@ -51,7 +51,7 @@ local function createLoaderGUI()
     title.Size = UDim2.new(1, 0, 0, 50)
     title.Position = UDim2.new(0, 0, 0, 20)
     title.BackgroundTransparency = 1
-    title.Text = "🎯 Universal Aimbot"
+    title.Text = "🌱 Grow A Garden"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
     title.TextSize = 24
     title.Font = Enum.Font.GothamBold
@@ -64,7 +64,7 @@ local function createLoaderGUI()
     version.Position = UDim2.new(0, 0, 0, 70)
     version.BackgroundTransparency = 1
     version.Text = "v" .. CONFIG.VERSION .. " by " .. CONFIG.AUTHOR
-    version.TextColor3 = Color3.fromRGB(150, 150, 170)
+    version.TextColor3 = Color3.fromRGB(150, 200, 150)
     version.TextSize = 14
     version.Font = Enum.Font.Gotham
     version.Parent = mainFrame
@@ -74,7 +74,7 @@ local function createLoaderGUI()
     progressBG.Name = "ProgressBG"
     progressBG.Size = UDim2.new(0.8, 0, 0, 8)
     progressBG.Position = UDim2.new(0.1, 0, 0, 130)
-    progressBG.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    progressBG.BackgroundColor3 = Color3.fromRGB(40, 60, 40)
     progressBG.BorderSizePixel = 0
     progressBG.Parent = mainFrame
     
@@ -87,7 +87,7 @@ local function createLoaderGUI()
     progressBar.Name = "ProgressBar"
     progressBar.Size = UDim2.new(0, 0, 1, 0)
     progressBar.Position = UDim2.new(0, 0, 0, 0)
-    progressBar.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+    progressBar.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
     progressBar.BorderSizePixel = 0
     progressBar.Parent = progressBG
     
@@ -101,8 +101,8 @@ local function createLoaderGUI()
     statusText.Size = UDim2.new(1, 0, 0, 30)
     statusText.Position = UDim2.new(0, 0, 0, 160)
     statusText.BackgroundTransparency = 1
-    statusText.Text = "Initializing..."
-    statusText.TextColor3 = Color3.fromRGB(200, 200, 220)
+    statusText.Text = "Preparing soil..."
+    statusText.TextColor3 = Color3.fromRGB(200, 240, 200)
     statusText.TextSize = 16
     statusText.Font = Enum.Font.Gotham
     statusText.Parent = mainFrame
@@ -114,7 +114,7 @@ local function createLoaderGUI()
     percentText.Position = UDim2.new(0, 0, 0, 190)
     percentText.BackgroundTransparency = 1
     percentText.Text = "0%"
-    percentText.TextColor3 = Color3.fromRGB(0, 200, 100)
+    percentText.TextColor3 = Color3.fromRGB(50, 200, 50)
     percentText.TextSize = 18
     percentText.Font = Enum.Font.GothamBold
     percentText.Parent = mainFrame
@@ -139,58 +139,58 @@ end
 
 -- Main Loader Function
 local function startLoader()
-    print("Creating loader GUI...")
+    print("Creating garden loader GUI...")
     
     -- Create GUI
     local gui, statusText, percentText, progressBar = createLoaderGUI()
     
     -- Step 1: Initialize
-    updateProgress(statusText, percentText, progressBar, 10, "🔄 Connecting to repository...")
+    updateProgress(statusText, percentText, progressBar, 10, "🌿 Connecting to garden framework...")
     wait(0.5)
     
     -- Step 2: Download script
-    updateProgress(statusText, percentText, progressBar, 30, "📥 Downloading aimbot script...")
+    updateProgress(statusText, percentText, progressBar, 30, "🌱 Downloading garden engine...")
     
     local downloadSuccess, scriptContent = pcall(function()
         return game:HttpGet(CONFIG.REPO_URL)
     end)
     
     if not downloadSuccess then
-        updateProgress(statusText, percentText, progressBar, 0, "❌ Download failed!")
+        updateProgress(statusText, percentText, progressBar, 0, "❌ Garden setup failed!")
         statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
         progressBar.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-        print("❌ Error downloading script:", scriptContent)
+        print("❌ Error downloading garden script:", scriptContent)
         wait(3)
         gui:Destroy()
         return
     end
     
-    updateProgress(statusText, percentText, progressBar, 60, "✅ Script downloaded successfully!")
-    print("✅ Downloaded script (" .. #scriptContent .. " characters)")
+    updateProgress(statusText, percentText, progressBar, 60, "✅ Garden engine downloaded!")
+    print("✅ Downloaded garden script (" .. #scriptContent .. " characters)")
     wait(0.5)
     
     -- Step 3: Compile script
-    updateProgress(statusText, percentText, progressBar, 80, "⚙️ Compiling script...")
+    updateProgress(statusText, percentText, progressBar, 80, "🌿 Preparing garden tools...")
     
     local compileSuccess, compiledScript = pcall(function()
         return loadstring(scriptContent)
     end)
     
     if not compileSuccess or not compiledScript then
-        updateProgress(statusText, percentText, progressBar, 0, "❌ Compilation failed!")
+        updateProgress(statusText, percentText, progressBar, 0, "❌ Garden tools setup failed!")
         statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
         progressBar.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-        print("❌ Error compiling script:", compiledScript)
+        print("❌ Error compiling garden script:", compiledScript)
         wait(3)
         gui:Destroy()
         return
     end
     
-    updateProgress(statusText, percentText, progressBar, 90, "🔧 Script compiled successfully!")
+    updateProgress(statusText, percentText, progressBar, 90, "🌱 Garden tools ready!")
     wait(0.5)
     
     -- Step 4: Execute
-    updateProgress(statusText, percentText, progressBar, 100, "🚀 Launching Universal Aimbot...")
+    updateProgress(statusText, percentText, progressBar, 100, "🌻 Starting your garden...")
     statusText.TextColor3 = Color3.fromRGB(100, 255, 100)
     wait(1)
     
@@ -198,14 +198,14 @@ local function startLoader()
     local executeSuccess, executeError = pcall(compiledScript)
     
     if executeSuccess then
-        updateProgress(statusText, percentText, progressBar, 100, "✅ Universal Aimbot loaded!")
-        print("🎯 Universal Aimbot loaded successfully!")
+        updateProgress(statusText, percentText, progressBar, 100, "🌸 Garden is growing!")
+        print("🌱 Garden Growth System loaded successfully!")
         wait(2)
     else
-        updateProgress(statusText, percentText, progressBar, 0, "❌ Execution failed!")
+        updateProgress(statusText, percentText, progressBar, 0, "❌ Garden failed to grow!")
         statusText.TextColor3 = Color3.fromRGB(255, 100, 100)
         progressBar.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-        print("❌ Error executing script:", executeError)
+        print("❌ Error starting garden:", executeError)
         wait(3)
     end
     
