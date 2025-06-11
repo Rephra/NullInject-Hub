@@ -2,7 +2,7 @@
 ---@diagnostic disable: undefined-global
 
 -- Production-ready script - Test code removed for cleaner execution
--- Protected by NullInject Premium Key System
+-- Protected by Vulpine Premium Key System
 
 -- Remove all developer restrictions - Anyone with valid key can execute
 local Players = game:GetService("Players")
@@ -71,8 +71,8 @@ if not validateGameId() then
 end
 
 -- Welcome message for all users
-notify("NullInject Premium", "Welcome " .. LocalPlayer.Name .. "! Loading script...", 3)
--- print removed: Loading NullInject Premium
+notify("Vulpine Premium", "Welcome " .. LocalPlayer.Name .. "! Loading script...", 3)
+-- print removed: Loading Vulpine Premium
 -- print removed: Access granted via key system
 
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
@@ -573,8 +573,7 @@ local Window = Library:CreateWindow({
 	-- NotifySide = Changes the side of the notifications (Left, Right) (Default value = Left)
 	-- Position and Size are also valid options here
 	-- but you do not have to define them unless you are changing them :)
-
-	Title = "Nullinject",
+	Title = "Vulpine",
 	Footer = "version: 1.2.8 - Honey Shop Update",
 	Icon = 12927365361,
 	NotifySide = "Right",
@@ -6883,16 +6882,15 @@ local function WebhookSend(Type, Fields)
 	local TimeStamp = DateTime.now():ToIsoDate()
 	local Body = {
 		embeds = {
-			{
-				title = "Nullinject Webhook",
-				description = "Advanced monitoring system by NullInject",
+			{				title = "Vulpine Webhook",
+				description = "Advanced monitoring system by Vulpine",
 				color = ColorValue,
 				fields = Fields,
 				thumbnail = {
 					url = "https://i.imgur.com/8wEeX0J.png" -- Generic code icon
 				},
 				footer = {
-					text = "Created by Nullinject Webhook",
+					text = "Created by Vulpine Webhook",
 					icon_url = "https://i.imgur.com/JrIa63B.png" -- Generic verified icon
 				},
 				timestamp = TimeStamp
@@ -7079,10 +7077,10 @@ WebHookConfigGroupBox:AddButton("Test Webhook", function()
 		},
 		{
 			name = "📝 NOTES",
-			value = "This is a verification message from the Nullinject Webhook.\nIf you're seeing this message, your webhook integration is configured correctly.",
+			value = "This is a verification message from the Vulpine Webhook.\nIf you're seeing this message, your webhook integration is configured correctly.",
 			inline = false
 		}
 	})
 
-	Library:Notify("✅ Nullinject Webhook test report sent!", 2)
+	Library:Notify("✅ Vulpine Webhook test report sent!", 2)
 end)
