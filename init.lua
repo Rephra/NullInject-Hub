@@ -1,6 +1,12 @@
 -- Vulpine Grow A Garden Loader
 -- Modern Loading GUI with Progress Animation
 
+-- Compatibility functions for different executors
+local readfile = readfile or function() return nil end
+local isfile = isfile or function() return false end
+local writefile = writefile or function() end
+local getgenv = getgenv or function() return _G end
+
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -243,10 +249,28 @@ local function executeLoader()
         local loadingComplete = startLoadingSequence(gui)        if loadingComplete then
             -- Load the main script
             wait(0.5)
-            gui.StatusLabel.Text = "Launching Grow A Garden script..."
-              local success, result = pcall(function()
-                -- Load the main Grow A Garden script from GitHub
-                return loadstring(game:HttpGet("https://raw.githubusercontent.com/Rephra/ApplicationFramework/refs/heads/main/init.lua"))()
+            gui.StatusLabel.Text = "Launching Grow A Garden script..."            local success, result = pcall(function()
+                -- Check if we're already in a loading state to prevent loops
+                if _G.VulpineMainScriptLoading then
+                    return true
+                end
+                _G.VulpineMainScriptLoading = true
+                
+                -- Load the main script content
+                local scriptContent = game:HttpGet("https://raw.githubusercontent.com/Rephra/ApplicationFramework/refs/heads/main/init.lua")
+                
+                -- Execute the script
+                local executeSuccess, executeResult = pcall(function()
+                    return loadstring(scriptContent)()
+                end)
+                
+                _G.VulpineMainScriptLoading = false
+                
+                if executeSuccess then
+                    return executeResult
+                else
+                    error("Script execution failed: " .. tostring(executeResult))
+                end
             end)
               if success then
                 gui.StatusLabel.Text = "Grow A Garden script loaded successfully!"
@@ -263,5 +287,8 @@ local function executeLoader()
     end)
 end
 
--- Execute the loader
-executeLoader()
+-- Execute the loader (but only once)
+if not _G.VulpineGrowLoaderExecuted then
+    _G.VulpineGrowLoaderExecuted = true
+    executeLoader()
+end
