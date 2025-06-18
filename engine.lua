@@ -2588,28 +2588,126 @@ HoneyCollectionGroupBox:AddToggle("AutoCollectHoney", {
 			Library:Notify("Auto Collect Honey enabled!", 3)
 			task.spawn(function()
 				while getgenv().AutoCollectHoneyEnabled do
-					local honeyMachineData = DataService:GetData().HoneyMachine
-					if honeyMachineData and honeyMachineData.TimeLeft <= 0 and honeyMachineData.HoneyStored > 0 then
-						-- Teleport to honey machine first
-						local honeyMachine = workspace:FindFirstChild("HoneyCombpressor", true)
-						if honeyMachine and honeyMachine:FindFirstChild("Spout") and honeyMachine.Spout:FindFirstChild("Jar") then
-							-- Position near the honey collection spout area
-							if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-								LocalPlayer.Character.HumanoidRootPart.CFrame = honeyMachine.Spout.Jar.CFrame + Vector3.new(0, 5, 0)
-								task.wait(0.8) -- Wait for teleport to register
-
-								-- Using MachineInteract command instead as that's what the game uses now
-								ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("MachineInteract")
-								Library:Notify("Collected " .. honeyMachineData.HoneyStored .. " honey!", 3)
-								task.wait(1)
+					-- Check honey machine data with error handling
+					local success, honeyMachineData = pcall(function()
+						return DataService:GetData().HoneyMachine
+					end)
+					
+					if success and honeyMachineData then
+						local timeLeft = honeyMachineData.TimeLeft or 0
+						local honeyStored = honeyMachineData.HoneyStored or 0
+						
+						print("🍯 Honey Machine Status - Time Left: " .. timeLeft .. "s | Honey Stored: " .. honeyStored)
+						
+						if timeLeft <= 0 and honeyStored > 0 then
+							print("✅ Honey ready for collection! Attempting to collect...")
+							
+							-- Find honey machine with multiple search methods
+							local honeyMachine = workspace:FindFirstChild("HoneyCombpressor", true) 
+								or workspace:FindFirstChild("HoneyMachine", true)
+								or workspace:FindFirstChild("Honey", true)
+							
+							-- Alternative search in common locations
+							if not honeyMachine then
+								local locations = {
+									workspace:FindFirstChild("Interaction"),
+									workspace:FindFirstChild("Machines"),
+									workspace:FindFirstChild("HoneyEvent")
+								}
+								
+								for _, location in pairs(locations) do
+									if location then
+										honeyMachine = location:FindFirstChild("HoneyCombpressor", true)
+											or location:FindFirstChild("HoneyMachine", true)
+											or location:FindFirstChild("Honey", true)
+										if honeyMachine then break end
+									end
+								end
+							end
+							
+							if honeyMachine then
+								print("🏭 Found honey machine: " .. honeyMachine.Name)
+								
+								-- Find collection point
+								local collectionPoint = nil
+								if honeyMachine:FindFirstChild("Spout") and honeyMachine.Spout:FindFirstChild("Jar") then
+									collectionPoint = honeyMachine.Spout.Jar
+								elseif honeyMachine:FindFirstChild("Jar") then
+									collectionPoint = honeyMachine.Jar
+								elseif honeyMachine:FindFirstChild("CollectionPoint") then
+									collectionPoint = honeyMachine.CollectionPoint
+								elseif honeyMachine.PrimaryPart then
+									collectionPoint = honeyMachine.PrimaryPart
+								end
+								
+								if collectionPoint and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+									-- Teleport to collection point
+									local teleportPosition = collectionPoint.CFrame * CFrame.new(0, 5, 2) -- Slightly offset
+									LocalPlayer.Character.HumanoidRootPart.CFrame = teleportPosition
+									print("🚀 Teleported to honey collection point")
+									task.wait(1) -- Wait for teleport to register
+									
+									-- Try multiple collection methods
+									local collectionMethods = {
+										function() 
+											ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("MachineInteract")
+											print("📡 Tried method: MachineInteract")
+										end,
+										function() 
+											ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("CollectHoney")
+											print("📡 Tried method: CollectHoney")
+										end,
+										function() 
+											ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("Collect")
+											print("📡 Tried method: Collect")
+										end,
+										function() 
+											ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer()
+											print("📡 Tried method: Default")
+										end
+									}
+									
+									local collectionSuccess = false
+									for i, method in pairs(collectionMethods) do
+										local methodSuccess = pcall(method)
+										if methodSuccess then
+											print("✅ Collection method " .. i .. " succeeded")
+											collectionSuccess = true
+											break
+										else
+											print("❌ Collection method " .. i .. " failed, trying next...")
+										end
+									end
+									
+									if collectionSuccess then
+										Library:Notify("🍯 Collected " .. honeyStored .. " honey!", 3)
+									else
+										print("❌ All collection methods failed")
+										Library:Notify("❌ Failed to collect honey!", 3)
+									end
+									
+									task.wait(2)
+								else
+									print("❌ Could not find collection point or character")
+									Library:Notify("❌ Could not find honey collection point!", 3)
+									task.wait(5)
+								end
 							else
-								task.wait(2) -- Wait for character to load
+								print("❌ Could not find honey machine")
+								Library:Notify("❌ Could not find honey machine!", 3)
+								task.wait(10)
 							end
 						else
-							Library:Notify("Could not find honey machine!", 3)
+							if timeLeft > 0 then
+								print("⏳ Honey not ready yet, time left: " .. timeLeft .. "s")
+							end
+							if honeyStored <= 0 then
+								print("📭 No honey stored")
+							end
 							task.wait(5)
 						end
 					else
+						print("❌ Could not access honey machine data")
 						task.wait(5)
 					end
 				end
@@ -2621,25 +2719,71 @@ HoneyCollectionGroupBox:AddToggle("AutoCollectHoney", {
 })
 
 HoneyCollectionGroupBox:AddButton("Check Honey Machine Status", function()
-	local honeyMachineData = DataService:GetData().HoneyMachine
-	if honeyMachineData then
-		local timeLeft = honeyMachineData.TimeLeft
-		local honeyStored = honeyMachineData.HoneyStored
-		local plantWeight = honeyMachineData.PlantWeight
-		local maxPlantWeight = require(ReplicatedStorage.Data.HoneyMachineData).MAX_PLANT_WEIGHT
-
-		Library:Notify(
-				string.format(
-						"🍯 Honey: %d | Plant: %.1f/%.1f | Time: %d",
-						honeyStored,
-						plantWeight,
-						maxPlantWeight,
-						timeLeft
-				),
-				5
+	print("🔍 Checking honey machine status...")
+	
+	local success, honeyMachineData = pcall(function()
+		return DataService:GetData().HoneyMachine
+	end)
+	
+	if success and honeyMachineData then
+		local timeLeft = honeyMachineData.TimeLeft or 0
+		local honeyStored = honeyMachineData.HoneyStored or 0
+		local plantWeight = honeyMachineData.PlantWeight or 0
+		
+		-- Try to get max plant weight with error handling
+		local maxPlantWeight = 100 -- Default value
+		local weightSuccess = pcall(function()
+			maxPlantWeight = require(ReplicatedStorage.Data.HoneyMachineData).MAX_PLANT_WEIGHT
+		end)
+		
+		if not weightSuccess then
+			print("⚠️ Could not get MAX_PLANT_WEIGHT, using default value")
+		end
+		
+		-- Format status message
+		local statusMessage = string.format(
+			"🍯 Honey: %d | Plants: %.1f/%.1f | Time: %ds",
+			honeyStored,
+			plantWeight,
+			maxPlantWeight,
+			timeLeft
 		)
+		
+		-- Add status indicators
+		local status = ""
+		if timeLeft <= 0 and honeyStored > 0 then
+			status = " | ✅ READY TO COLLECT"
+		elseif timeLeft > 0 then
+			status = " | ⏳ PROCESSING"
+		elseif plantWeight >= maxPlantWeight then
+			status = " | 🔄 FULL - READY TO START"
+		else
+			status = " | 📭 NEEDS PLANTS"
+		end
+		
+		statusMessage = statusMessage .. status
+		
+		print("📊 " .. statusMessage)
+		Library:Notify(statusMessage, 5)
+		
+		-- Additional detailed console output
+		print("📊 Detailed Status:")
+		print("   🍯 Honey Stored: " .. honeyStored)
+		print("   ⏰ Time Left: " .. timeLeft .. " seconds")
+		print("   🌱 Plant Weight: " .. plantWeight .. "/" .. maxPlantWeight)
+		print("   📈 Efficiency: " .. math.floor((plantWeight/maxPlantWeight)*100) .. "%")
+		
 	else
+		print("❌ Failed to get honey machine data")
 		Library:Notify("❌ Could not get honey machine data!", 3)
+		
+		-- Try to find honey machine in workspace as fallback
+		local honeyMachine = workspace:FindFirstChild("HoneyCombpressor", true)
+		if honeyMachine then
+			print("🏭 Found honey machine in workspace: " .. honeyMachine:GetFullName())
+		else
+			print("❌ Could not find honey machine in workspace")
+		end
 	end
 end)
 
