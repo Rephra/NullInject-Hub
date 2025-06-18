@@ -2468,57 +2468,105 @@ HoneyCollectionGroupBox:AddToggle("AutoGivePlants", {
 			Library:Notify("🌱 Auto Give Plants enabled!", 3)
 			task.spawn(function()
 				while getgenv().AutoGivePlantsEnabled do
-					local honeyMachineData = DataService:GetData().HoneyMachine
-					if
-					honeyMachineData
-							and honeyMachineData.PlantWeight
-							< require(ReplicatedStorage.Data.HoneyMachineData).MAX_PLANT_WEIGHT
-					then
-						-- Check if player is holding a pollinated plant
-						local pollinatedTool = nil
-						for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
-							if
-							tool:IsA("Tool")
-									and tool:HasTag("FruitTool")
-									and tool:GetAttribute("ITEM_UUID")
-									and tool:GetAttribute("Pollinated")
-									and not tool:GetAttribute("Favorite")
-							then
-								pollinatedTool = tool
-								break
-							end
+					-- Check if honey machine has space
+					local success, honeyMachineData = pcall(function()
+						return DataService:GetData().HoneyMachine
+					end)
+					
+					if success and honeyMachineData and honeyMachineData.PlantWeight then
+						local maxWeight = 100 -- Default max weight, adjust if needed
+						local hasSpaceRemote = pcall(function()
+							return require(ReplicatedStorage.Data.HoneyMachineData).MAX_PLANT_WEIGHT
+						end)
+						if hasSpaceRemote then
+							maxWeight = require(ReplicatedStorage.Data.HoneyMachineData).MAX_PLANT_WEIGHT
 						end
-
-						if pollinatedTool then
-							-- Using MachineInteract command instead as that's what the game uses now
-							ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("MachineInteract")
-							task.wait(1)
-						else
-							-- Check backpack for pollinated plants
-							local backpack = LocalPlayer:FindFirstChild("Backpack")
-							if backpack then
-								for _, tool in pairs(backpack:GetChildren()) do
-									if
-									tool:IsA("Tool")
-											and tool:HasTag("FruitTool")
-											and tool:GetAttribute("ITEM_UUID")
-											and tool:GetAttribute("Pollinated")
-											and not tool:GetAttribute("Favorite")
-									then
-										-- Equip and give the plant
-										LocalPlayer.Character.Humanoid:EquipTool(tool)
-										task.wait(0.3)
-										ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer(
-												"MachineInteract"
-										)
-										task.wait(1)
-										break
+						
+						if honeyMachineData.PlantWeight < maxWeight then
+							-- Check if player is holding a pollinated plant
+							local pollinatedTool = nil
+							if LocalPlayer.Character then
+								for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
+									if tool:IsA("Tool") then
+										local isPollinated = tool:GetAttribute("Pollinated")
+										local isFruit = tool:HasTag("FruitTool") or tool:GetAttribute("ITEM_UUID") or string.find(tool.Name:lower(), "fruit")
+										local isFavorited = tool:GetAttribute("Favorite")
+										
+										print("🔍 Checking tool: " .. tool.Name .. " | Pollinated: " .. tostring(isPollinated) .. " | Fruit: " .. tostring(isFruit) .. " | Favorited: " .. tostring(isFavorited))
+										
+										if isPollinated and isFruit and not isFavorited then
+											pollinatedTool = tool
+											print("✅ Found pollinated tool to give: " .. tool.Name)
+											break
+										end
 									end
 								end
 							end
-							task.wait(1)
+
+							if pollinatedTool then
+								print("🍓 Giving pollinated plant: " .. pollinatedTool.Name)
+								-- Try multiple methods to give the plant
+								local giveSuccess = pcall(function()
+									ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("MachineInteract")
+								end)
+								
+								if not giveSuccess then
+									-- Try alternative method
+									pcall(function()
+										ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("SubmitPlant")
+									end)
+								end
+								
+								task.wait(1.5)
+							else
+								-- Check backpack for pollinated plants
+								local backpack = LocalPlayer:FindFirstChild("Backpack")
+								if backpack then
+									local foundInBackpack = false
+									for _, tool in pairs(backpack:GetChildren()) do
+										if tool:IsA("Tool") then
+											local isPollinated = tool:GetAttribute("Pollinated")
+											local isFruit = tool:HasTag("FruitTool") or tool:GetAttribute("ITEM_UUID") or string.find(tool.Name:lower(), "fruit")
+											local isFavorited = tool:GetAttribute("Favorite")
+											
+											if isPollinated and isFruit and not isFavorited then
+												print("🎒 Equipping pollinated plant from backpack: " .. tool.Name)
+												-- Equip the tool
+												LocalPlayer.Character.Humanoid:EquipTool(tool)
+												task.wait(0.5)
+												
+												-- Give the plant
+												local giveSuccess = pcall(function()
+													ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("MachineInteract")
+												end)
+												
+												if not giveSuccess then
+													pcall(function()
+														ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("SubmitPlant")
+													end)
+												end
+												
+												foundInBackpack = true
+												task.wait(1.5)
+												break
+											end
+										end
+									end
+									
+									if not foundInBackpack then
+										print("🔍 No pollinated plants found in backpack")
+										task.wait(2)
+									end
+								else
+									task.wait(2)
+								end
+							end
+						else
+							print("⚠️ Honey machine is full, waiting...")
+							task.wait(5)
 						end
 					else
+						print("❌ Could not access honey machine data")
 						task.wait(3)
 					end
 				end
@@ -2596,7 +2644,64 @@ HoneyCollectionGroupBox:AddButton("Check Honey Machine Status", function()
 end)
 
 HoneyCollectionGroupBox:AddButton("🌺 Give Pollinated Fruit", function()
-	ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("MachineInteract")
+	print("🌺 Attempting to give pollinated fruit...")
+	
+	-- Check if player has a pollinated item equipped
+	local equippedTool = nil
+	if LocalPlayer.Character then
+		for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
+			if tool:IsA("Tool") and tool:GetAttribute("Pollinated") then
+				equippedTool = tool
+				break
+			end
+		end
+	end
+	
+	if equippedTool then
+		print("✅ Found equipped pollinated item: " .. equippedTool.Name)
+	else
+		print("🔍 No pollinated item equipped, checking backpack...")
+		-- Try to equip a pollinated item from backpack
+		local backpack = LocalPlayer:FindFirstChild("Backpack")
+		if backpack then
+			for _, tool in pairs(backpack:GetChildren()) do
+				if tool:IsA("Tool") and tool:GetAttribute("Pollinated") and not tool:GetAttribute("Favorite") then
+					print("🎒 Equipping pollinated item: " .. tool.Name)
+					LocalPlayer.Character.Humanoid:EquipTool(tool)
+					task.wait(0.5)
+					equippedTool = tool
+					break
+				end
+			end
+		end
+	end
+	
+	if equippedTool then
+		-- Try multiple remote methods
+		local methods = {
+			function() ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("MachineInteract") end,
+			function() ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("SubmitPlant") end,
+			function() ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("GivePlant") end,
+			function() ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer() end
+		}
+		
+		for i, method in pairs(methods) do
+			local success = pcall(method)
+			if success then
+				print("✅ Successfully gave pollinated fruit using method " .. i)
+				Library:Notify("🌺 Gave pollinated fruit!", 3)
+				return
+			else
+				print("❌ Method " .. i .. " failed, trying next...")
+			end
+		end
+		
+		print("❌ All methods failed to give pollinated fruit")
+		Library:Notify("❌ Failed to give pollinated fruit!", 3)
+	else
+		print("❌ No pollinated items found")
+		Library:Notify("❌ No pollinated items found!", 3)
+	end
 end)
 
 HoneyCollectionGroupBox:AddButton("🔄 Teleport to Honey Machine", function()
