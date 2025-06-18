@@ -2542,9 +2542,25 @@ HoneyCollectionGroupBox:AddToggle("AutoCollectHoney", {
 				while getgenv().AutoCollectHoneyEnabled do
 					local honeyMachineData = DataService:GetData().HoneyMachine
 					if honeyMachineData and honeyMachineData.TimeLeft <= 0 and honeyMachineData.HoneyStored > 0 then
-						-- Using MachineInteract command instead as that's what the game uses now
-						ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("MachineInteract")
-						task.wait(1)
+						-- Teleport to honey machine first
+						local honeyMachine = workspace:FindFirstChild("HoneyCombpressor", true)
+						if honeyMachine and honeyMachine:FindFirstChild("Spout") and honeyMachine.Spout:FindFirstChild("Jar") then
+							-- Position near the honey collection spout area
+							if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+								LocalPlayer.Character.HumanoidRootPart.CFrame = honeyMachine.Spout.Jar.CFrame + Vector3.new(0, 5, 0)
+								task.wait(0.8) -- Wait for teleport to register
+
+								-- Using MachineInteract command instead as that's what the game uses now
+								ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("MachineInteract")
+								Library:Notify("Collected " .. honeyMachineData.HoneyStored .. " honey!", 3)
+								task.wait(1)
+							else
+								task.wait(2) -- Wait for character to load
+							end
+						else
+							Library:Notify("Could not find honey machine!", 3)
+							task.wait(5)
+						end
 					else
 						task.wait(5)
 					end
@@ -2596,9 +2612,9 @@ end)
 
 
 -- Universal Crafting System
-local CraftingGroupBox = Tabs.Event:AddLeftGroupbox("🔨 Crafter")
+local CraftingGroupBox = Tabs.Event:AddLeftGroupbox("🔨 Gear Crafter")
 
--- Recipe items for crafting
+-- Recipe items for gear crafting
 local CraftRecipeItems = {
     "Tropical Mist Sprinkler",
     "Berry Blusher Sprinkler",
@@ -2611,7 +2627,15 @@ local CraftRecipeItems = {
     "Mutation Spray Shocked",
     "Honey Crafters Crate",
     "Anti Bee Egg",
-    "Pack Bee",
+    "Pack Bee"
+}
+
+-- Selected recipes for auto crafting
+local SelectedCraftRecipes = {}
+local AutoCraftEnabled = false
+
+-- Recipe items for seed crafting
+local SeedCraftRecipeItems = {
     "Crafters Seed Pack",
     "Manuka Flower",
     "Dandelion",
@@ -2622,9 +2646,9 @@ local CraftRecipeItems = {
     "Suncoil"
 }
 
--- Selected recipes for auto crafting
-local SelectedCraftRecipes = {}
-local AutoCraftEnabled = false
+-- Selected recipes for auto seed crafting
+local SelectedSeedCraftRecipes = {}
+local AutoSeedCraftEnabled = false
 
 -- Add multi-select dropdown for craft/recipe items
 CraftingGroupBox:AddDropdown("CraftRecipes", {
@@ -2650,6 +2674,13 @@ CraftingGroupBox:AddToggle("AutoCraft", {
     Callback = function(Value)
         print("[cb] Auto Craft toggled:", Value)
         AutoCraftEnabled = Value
+
+        -- Disable seed crafting if gear crafting is enabled
+        if Value and AutoSeedCraftEnabled then
+            AutoSeedCraftEnabled = false
+            Toggles.AutoSeedCraft:SetValue(false)
+            print("[DEBUG_LOG] Disabled seed crafting because gear crafting was enabled")
+        end
 
         if Value then
             Library:Notify("Auto Craft enabled! Will craft when all items are available.", 3)
@@ -2862,9 +2893,28 @@ function checkInventoryForRecipe(recipeName)
         end
     end
 
+    -- Check if recipe requires honey
+    local honeyRequired = false
+    local honeyAmount = 0
+    if recipe.Cost and recipe.Cost.CurrencyType == "Honey" then
+        honeyRequired = true
+        honeyAmount = recipe.Cost.Amount
+        print("[DEBUG_LOG] Recipe requires", honeyAmount, "honey")
+
+        -- Check if player has enough honey
+        local playerHoney = getPlayerHoney()
+        print("[DEBUG_LOG] Player has", playerHoney, "honey")
+
+        if playerHoney < honeyAmount then
+            missingItems["Honey"] = {have = playerHoney, need = honeyAmount, currency = true}
+            totalMissing = totalMissing + 1
+            print("[DEBUG_LOG] Missing honey:", playerHoney, "/", honeyAmount)
+        end
+    end
+
     if totalMissing > 0 then
         print("[DEBUG_LOG] Missing items for recipe:", recipeName)
-        return false, missingItems, totalRequired
+        return false, missingItems, totalRequired, honeyRequired, honeyAmount
     end
 
     print("[DEBUG_LOG] Player has all items for recipe:", recipeName)
@@ -2924,19 +2974,33 @@ function teleportToCrafterAndCraft(recipeName)
     print("[DEBUG_LOG] Checking if player has all items for recipe:", recipeName)
 
     -- First, check if player has all required items
-    local hasAllItems, missingItems, totalRequired = checkInventoryForRecipe(recipeName)
+    local hasAllItems, missingItems, totalRequired, honeyRequired, honeyAmount = checkInventoryForRecipe(recipeName)
     if not hasAllItems then
         print("[DEBUG_LOG] Player doesn't have all required items for recipe:", recipeName)
 
         -- Create a more informative error message
         local missingItemsCount = 0
         local missingItemsList = ""
+        local missingHoney = false
+
         for itemName, info in pairs(missingItems or {}) do
             missingItemsCount = missingItemsCount + 1
-            missingItemsList = missingItemsList .. "\n• " .. itemName .. " - Have: " .. info.have .. " Need: " .. info.need
+
+            if itemName == "Honey" and info.currency then
+                missingHoney = true
+                missingItemsList = missingItemsList .. "\n• " .. itemName .. " - Have: " .. info.have .. " Need: " .. info.need .. " (Currency)"
+            else
+                missingItemsList = missingItemsList .. "\n• " .. itemName .. " - Have: " .. info.have .. " Need: " .. info.need
+            end
         end
 
-        local message = "Missing " .. missingItemsCount .. " of " .. (totalRequired or "?") .. " items needed for " .. recipeName .. ":" .. missingItemsList
+        local message
+        if missingHoney then
+            message = "Missing honey and/or items needed for " .. recipeName .. ":" .. missingItemsList
+        else
+            message = "Missing " .. missingItemsCount .. " of " .. (totalRequired or "?") .. " items needed for " .. recipeName .. ":" .. missingItemsList
+        end
+
         Library:Notify(message, 5)
         return false
     end
@@ -3104,6 +3168,125 @@ CraftingGroupBox:AddButton("Check Craftable Recipes", function()
         Library:Notify(message, 5)
     else
         Library:Notify("No selected recipes can be crafted with current inventory", 3)
+    end
+end)
+
+-- Seed Crafting System
+local SeedCraftingGroupBox = Tabs.Event:AddRightGroupbox("🌱 Seed Crafter")
+
+-- Add multi-select dropdown for seed craft/recipe items
+SeedCraftingGroupBox:AddDropdown("SeedCraftRecipes", {
+    Values = SeedCraftRecipeItems,
+    Default = 1,
+    Multi = true,
+    Text = "Select Seed Recipes to Craft",
+    Tooltip = "Choose seed recipes to auto-craft when you have the required items",
+    Callback = function(Value)
+        print("[cb] Seed craft recipes selection changed:")
+        SelectedSeedCraftRecipes = Value
+        for recipe, selected in next, Options.SeedCraftRecipes.Value do
+            print(recipe, selected)
+        end
+    end,
+})
+
+-- Add toggle for auto-crafting seeds
+SeedCraftingGroupBox:AddToggle("AutoSeedCraft", {
+    Text = "Auto Craft Selected Seed Recipes",
+    Tooltip = "Automatically craft selected seed recipes when you have all required items",
+    Default = false,
+    Callback = function(Value)
+        print("[cb] Auto Seed Craft toggled:", Value)
+        AutoSeedCraftEnabled = Value
+
+        -- Disable gear crafting if seed crafting is enabled
+        if Value and AutoCraftEnabled then
+            AutoCraftEnabled = false
+            Toggles.AutoCraft:SetValue(false)
+            print("[DEBUG_LOG] Disabled gear crafting because seed crafting was enabled")
+        end
+
+        if Value then
+            Library:Notify("Auto Seed Craft enabled! Will craft when all items are available.", 3)
+
+            -- Start auto seed crafting loop
+            task.spawn(function()
+                while AutoSeedCraftEnabled and Toggles.AutoSeedCraft.Value do
+                    -- Check if any seed recipes are selected
+                    local hasSelectedRecipes = false
+                    for recipe, selected in pairs(SelectedSeedCraftRecipes) do
+                        if selected then
+                            hasSelectedRecipes = true
+                            break
+                        end
+                    end
+
+                    if hasSelectedRecipes then
+                        -- Try to craft each selected seed recipe
+                        for recipe, selected in pairs(SelectedSeedCraftRecipes) do
+                            if selected and AutoSeedCraftEnabled and Toggles.AutoSeedCraft.Value then
+                                -- Check if player has all required items for this recipe
+                                local hasAllItems = checkInventoryForRecipe(recipe)
+
+                                if hasAllItems then
+                                    print("[DEBUG_LOG] Player has all items for seed recipe:", recipe)
+                                    Library:Notify("Found all items for " .. recipe .. "! Teleporting to seed crafter...", 3)
+
+                                    -- Teleport to crafter and craft the recipe
+                                    local success = teleportToCrafterAndCraft(recipe)
+
+                                    if success then
+                                        Library:Notify("Successfully started crafting " .. recipe, 3)
+                                        -- Wait longer after successful crafting
+                                        task.wait(5)
+                                    else
+                                        Library:Notify("Failed to craft " .. recipe, 3)
+                                        task.wait(2)
+                                    end
+                                else
+                                    -- Print missing items for debugging
+                                    print("[DEBUG_LOG] Missing items for seed recipe:", recipe)
+                                    task.wait(0.5)
+                                end
+                            end
+                        end
+                    else
+                        Library:Notify("Auto Seed Craft enabled but no recipes selected!", 3)
+                    end
+
+                    -- Wait before checking again
+                    task.wait(3)
+                end
+            end)
+        else
+            Library:Notify("Auto Seed Craft disabled", 3)
+        end
+    end,
+})
+
+-- Add button to manually check for craftable seed recipes
+SeedCraftingGroupBox:AddButton("Check Craftable Seed Recipes", function()
+    local craftableRecipes = {}
+    local count = 0
+
+    for recipe, selected in pairs(SelectedSeedCraftRecipes) do
+        if selected then
+            local hasAllItems = checkInventoryForRecipe(recipe)
+            if hasAllItems then
+                table.insert(craftableRecipes, recipe)
+                count = count + 1
+            end
+        end
+    end
+
+    if count > 0 then
+        local message = "Craftable seed recipes:\n"
+        for _, recipe in ipairs(craftableRecipes) do
+            message = message .. "✅ " .. recipe .. "\n"
+        end
+        Library:Notify(message, 5)
+    else
+        Library:Notify("No selected seed recipes can be crafted with current inventory", 3)
     end
 end)
 
