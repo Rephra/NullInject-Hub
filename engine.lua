@@ -574,8 +574,8 @@ local Window = Library:CreateWindow({
 	-- Position and Size are also valid options here
 	-- but you do not have to define them unless you are changing them :)
 	Title = "Vulpine",
-	Footer = "version: 1.2.8 - Honey Shop Update",
-	Icon = 12927365361,
+	Footer = "version: 1.3.3 - Crafting, Update",
+	Icon = 102791718156683,
 	NotifySide = "Right",
 	ShowCustomCursor = true,
 })
@@ -941,6 +941,8 @@ StoreGroupBox:AddDropdown("StoreItems", {
 		"Cacao",
 		"Beanstalk",
 		"Bamboo",
+		"Sugar Apple",
+		"Ember Lily",
 	},
 	Default = 1,
 	Multi = true, -- Allows multiple selections
@@ -2593,728 +2595,517 @@ HoneyCollectionGroupBox:AddButton("🔄 Teleport to Honey Machine", function()
 end)
 
 
--- Add the new Honey Crafter section for the craft system
-local HoneyCrafterGroupBox = Tabs.Event:AddLeftGroupbox("🍯 Honey Crafter")
+-- Universal Crafting System
+local CraftingGroupBox = Tabs.Event:AddLeftGroupbox("🔨 Crafter")
 
-HoneyCrafterGroupBox:AddToggle("AutoSubmitHoney", {
-	Text = "🍯 Auto Submit Honey",
-	Default = false,
-	Tooltip = "Automatically submits honey to the honey crafter",
+-- Recipe items for crafting
+local CraftRecipeItems = {
+    "Tropical Mist Sprinkler",
+    "Berry Blusher Sprinkler",
+    "Spice Spritzer Sprinkler",
+    "Sweet Soaker Sprinkler",
+    "Flower Froster Sprinkler",
+    "Stalk Sprout Sprinkler",
+    "Mutation Spray Choc",
+    "Mutation Spray Pollinated",
+    "Mutation Spray Shocked",
+    "Honey Crafters Crate",
+    "Anti Bee Egg",
+    "Pack Bee",
+    "Crafters Seed Pack",
+    "Manuka Flower",
+    "Dandelion",
+    "Lumira",
+    "Honeysuckle",
+    "Bee Balm",
+    "Nectar Thorn",
+    "Suncoil"
+}
 
-	Callback = function(Value)
-		getgenv().AutoSubmitHoneyEnabled = Value
-		if Value then
-			Library:Notify("🍯 Auto Submit Honey enabled!", 3)
-			task.spawn(function()
-				while getgenv().AutoSubmitHoneyEnabled do
-					local crafterData = DataService:GetData().HoneyCrafterEventData
-					if crafterData and not crafterData.HoneyRequirementMet then
-						ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer("SubmitHoney")
-						task.wait(2)
-					else
-						task.wait(5)
-					end
-				end
-			end)
-		else
-			Library:Notify("🍯 Auto Submit Honey disabled!", 3)
-		end
-	end,
+-- Selected recipes for auto crafting
+local SelectedCraftRecipes = {}
+local AutoCraftEnabled = false
+
+-- Add multi-select dropdown for craft/recipe items
+CraftingGroupBox:AddDropdown("CraftRecipes", {
+    Values = CraftRecipeItems,
+    Default = 1,
+    Multi = true,
+    Text = "Select Recipes to Craft",
+    Tooltip = "Choose recipes to auto-craft when you have the required items",
+    Callback = function(Value)
+        print("[cb] Craft recipes selection changed:")
+        SelectedCraftRecipes = Value
+        for recipe, selected in next, Options.CraftRecipes.Value do
+            print(recipe, selected)
+        end
+    end,
 })
 
-HoneyCrafterGroupBox:AddToggle("AutoSubmitPlant", {
-	Text = "🌱 Auto Submit Craft Plant",
-	Default = false,
-	Tooltip = "Automatically submits the required plant to the crafter (teleports if needed)",
+-- Add toggle for auto-crafting
+CraftingGroupBox:AddToggle("AutoCraft", {
+    Text = "Auto Craft Selected Recipes",
+    Tooltip = "Automatically craft selected recipes when you have all required items",
+    Default = false,
+    Callback = function(Value)
+        print("[cb] Auto Craft toggled:", Value)
+        AutoCraftEnabled = Value
 
-	Callback = function(Value)
-		getgenv().AutoSubmitPlantEnabled = Value
-		if Value then
-			Library:Notify("🌱 Auto Submit Craft Plant enabled!", 3)
-			task.spawn(function()
-				-- Track the player's position before teleporting to honey station
-				local playerOriginalPosition = nil
+        if Value then
+            Library:Notify("Auto Craft enabled! Will craft when all items are available.", 3)
 
-				while getgenv().AutoSubmitPlantEnabled do
-					local crafterData = DataService:GetData().HoneyCrafterEventData
-					if crafterData and not crafterData.PlantRequirementMet then
-						-- Save player's position if we don't have it yet
-						if
-						not playerOriginalPosition
-								and LocalPlayer.Character
-								and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-						then
-							playerOriginalPosition = LocalPlayer.Character.HumanoidRootPart.CFrame
-							print("📍 Saved player's original position before plant submission")
-						end
+            -- Start auto crafting loop
+            task.spawn(function()
+                while AutoCraftEnabled and Toggles.AutoCraft.Value do
+                    -- Check if any recipes are selected
+                    local hasSelectedRecipes = false
+                    for recipe, selected in pairs(SelectedCraftRecipes) do
+                        if selected then
+                            hasSelectedRecipes = true
+                            break
+                        end
+                    end
 
-						-- Check if the player is holding the required plant
-						local requiredPlant = crafterData.CraftingRecipe.RequiredPlant
-						local requiredMutation = crafterData.CraftingRecipe.RequiredPlantMutation
-						local requiredPlantSize = crafterData.CraftingRecipe.RequiredPlantSize
-						local heldTool = nil
+                    if hasSelectedRecipes then
+                        -- Try to craft each selected recipe
+                        for recipe, selected in pairs(SelectedCraftRecipes) do
+                            if selected and AutoCraftEnabled and Toggles.AutoCraft.Value then
+                                -- Check if player has all required items for this recipe
+                                local hasAllItems = checkInventoryForRecipe(recipe)
 
-						for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
-							if tool:IsA("Tool") and tool:HasTag("FruitTool") and tool:GetAttribute("ITEM_UUID") then
-								-- Check if it's the right plant
-								local toolData = require(ReplicatedStorage.Modules.InventoryService):GetToolData(tool)
-								if toolData and toolData.ItemData.ItemName == requiredPlant then
-									-- Check mutation if required
-									if requiredMutation == nil or tool:GetAttribute(requiredMutation) then
-										-- Check plant weight
-										local plantWeight = tool:GetAttribute("Weight") or tool:GetAttribute("Size") or tool:GetAttribute("PlantWeight") or 0
-										if plantWeight >= requiredPlantSize then
-											heldTool = tool
-											break
-										else
-											print("❌ Found plant but weight is too low:", plantWeight, "Required:", requiredPlantSize)
-											-- Add a notification to inform the player about the weight issue
-											Library:Notify("❌ Found " .. requiredPlant .. " but weight is too low! Need: " .. requiredPlantSize .. "kg+", 3)
-										end
-									end
-								end
-							end
-						end
+                                if hasAllItems then
+                                    print("[DEBUG_LOG] Player has all items for recipe:", recipe)
+                                    Library:Notify("Found all items for " .. recipe .. "! Teleporting to crafter...", 3)
 
-						if heldTool then
-							print("✅ Player is holding the required plant:", requiredPlant)
-							-- Try direct submission first without teleporting
-							local trySubmitResult = pcall(function()
-								ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer("SubmitHeldPlant")
-							end)
+                                    -- Teleport to crafter and craft the recipe
+                                    local success = teleportToCrafterAndCraft(recipe)
 
-							if trySubmitResult then
-								print("✅ Successfully submitted plant directly without teleporting")
-								Library:Notify("✅ Submitted " .. requiredPlant .. " to Honey Crafter!", 2)
-							else
-								-- Direct submission failed, need to teleport
-								print("🔄 Direct submission failed, teleporting to plant station")
-								-- Find the plant submission station
-								local plantStation = workspace:FindFirstChild("HoneyCrafterPrompt_Plant", true)
-								if plantStation then
-									-- Store the player's current position if we don't have it
-									if
-									not playerOriginalPosition
-											and LocalPlayer.Character
-											and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-									then
-										playerOriginalPosition = LocalPlayer.Character.HumanoidRootPart.CFrame
-										print("📍 Saved player's position before teleport")
-									end
+                                    if success then
+                                        Library:Notify("Successfully started crafting " .. recipe, 3)
+                                        -- Wait longer after successful crafting
+                                        task.wait(5)
+                                    else
+                                        Library:Notify("Failed to craft " .. recipe, 3)
+                                        task.wait(2)
+                                    end
+                                else
+                                    -- Print missing items for debugging
+                                    print("[DEBUG_LOG] Missing items for recipe:", recipe)
+                                    task.wait(0.5)
+                                end
+                            end
+                        end
+                    else
+                        Library:Notify("Auto Craft enabled but no recipes selected!", 3)
+                    end
 
-									-- Get the part that contains the proximity prompt
-									local parentPart = plantStation.Parent
-									if not parentPart:IsA("BasePart") then
-										parentPart = parentPart.Parent
-									end
-
-									-- Teleport to the plant submission area
-									local stationPosition = parentPart.Position
-									LocalPlayer.Character.HumanoidRootPart.CFrame =
-									CFrame.new(stationPosition + Vector3.new(0, 3, 0))
-									print("🚀 Teleported to plant submission station")
-									Library:Notify("🚀 Teleported to Honey Crafter Plant Station", 2)
-
-									-- Wait a moment
-									task.wait(0.5)
-
-									-- Try to submit again
-									local submissionSuccess = pcall(function()
-										ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer(
-												"SubmitHeldPlant"
-										)
-									end)
-
-									if submissionSuccess then
-										print("✅ Successfully submitted plant after teleporting")
-										Library:Notify("✅ Submitted " .. requiredPlant .. " to Honey Crafter!", 2)
-									else
-										print("❌ Failed to submit plant even after teleporting")
-										Library:Notify("❌ Failed to submit plant to Honey Crafter", 2)
-									end
-
-									-- Wait for submission to register
-									task.wait(1)
-
-									-- Teleport back to original position
-									if playerOriginalPosition then
-										LocalPlayer.Character.HumanoidRootPart.CFrame = playerOriginalPosition
-										print("🔄 Teleported back to original position")
-										Library:Notify("🔄 Returned to original position", 2)
-									else
-										print("⚠️ No original position saved to return to")
-									end
-								else
-									-- No prompt found, try direct submission again
-									print("⚠️ Plant station not found, trying direct submission again")
-									ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer("SubmitHeldPlant")
-								end
-							end
-
-							task.wait(1)
-						else
-							-- Check backpack for the required plant
-							local backpack = LocalPlayer:FindFirstChild("Backpack")
-							if backpack then
-								for _, tool in pairs(backpack:GetChildren()) do
-									if
-									tool:IsA("Tool")
-											and tool:HasTag("FruitTool")
-											and tool:GetAttribute("ITEM_UUID")
-									then
-										local toolData =
-										require(ReplicatedStorage.Modules.InventoryService):GetToolData(tool)
-										if toolData and toolData.ItemData.ItemName == requiredPlant then
-											if requiredMutation == nil or tool:GetAttribute(requiredMutation) then
-												-- Check plant weight
-												local plantWeight = tool:GetAttribute("Weight") or tool:GetAttribute("Size") or tool:GetAttribute("PlantWeight") or 0
-												if plantWeight >= requiredPlantSize then
-													-- Equip the tool
-													print("🔄 Equipping required plant from backpack:", requiredPlant)
-													LocalPlayer.Character.Humanoid:EquipTool(tool)
-													task.wait(0.5)
-												else
-													-- Plant weight is too low, notify the player and skip this plant
-													print("❌ Found plant in backpack but weight is too low:", plantWeight, "Required:", requiredPlantSize)
-													Library:Notify("❌ Found " .. requiredPlant .. " but weight is too low! Need: " .. requiredPlantSize .. "kg+", 3)
-													-- Skip to the next plant by breaking out of the current iteration
-													-- This is a workaround since 'continue' is not supported in this Lua version
-													break
-												end
-
-												-- Store the player's current position if we don't have it
-												if
-												not playerOriginalPosition
-														and LocalPlayer.Character
-														and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-												then
-													playerOriginalPosition =
-													LocalPlayer.Character.HumanoidRootPart.CFrame
-													print(
-															"📍 Saved player's position before teleporting with backpack plant"
-													)
-												end
-
-												-- Find the plant submission station
-												local plantStation =
-												workspace:FindFirstChild("HoneyCrafterPrompt_Plant", true)
-												if plantStation then
-													-- Get the part that contains the proximity prompt
-													local parentPart = plantStation.Parent
-													if not parentPart:IsA("BasePart") then
-														parentPart = parentPart.Parent
-													end
-
-													-- Teleport to the plant submission area
-													local stationPosition = parentPart.Position
-													LocalPlayer.Character.HumanoidRootPart.CFrame =
-													CFrame.new(stationPosition + Vector3.new(0, 3, 0))
-													print(
-															"🚀 Teleported to plant submission station with equipped plant"
-													)
-													Library:Notify("🚀 Teleported to Honey Crafter Plant Station", 2)
-
-													-- Wait a moment
-													task.wait(0.5)
-
-													-- Try to submit
-													local submissionSuccess = pcall(function()
-														ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer(
-																"SubmitHeldPlant"
-														)
-													end)
-
-													if submissionSuccess then
-														print(
-																"✅ Successfully submitted plant from backpack after teleporting"
-														)
-														Library:Notify(
-																"✅ Submitted " .. requiredPlant .. " to Honey Crafter!",
-																2
-														)
-													else
-														print(
-																"❌ Failed to submit plant from backpack even after teleporting"
-														)
-														Library:Notify("❌ Failed to submit plant to Honey Crafter", 2)
-													end
-
-													-- Wait for submission to register
-													task.wait(1)
-
-													-- Teleport back to original position
-													if playerOriginalPosition then
-														LocalPlayer.Character.HumanoidRootPart.CFrame =
-														playerOriginalPosition
-														print("🔄 Teleported back to original position")
-														Library:Notify("🔄 Returned to original position", 2)
-													else
-														print("⚠️ No original position saved to return to")
-													end
-												else
-													-- No prompt found, try direct submission
-													print(
-															"⚠️ Plant station not found, trying direct submission with equipped plant"
-													)
-													ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer(
-															"SubmitHeldPlant"
-													)
-												end
-
-												task.wait(1)
-												break
-											end
-										end
-									end
-								end
-							end
-
-							task.wait(5)
-						end
-					else
-						-- Plant requirement is already met, reset position tracking
-						playerOriginalPosition = nil
-						task.wait(5)
-					end
-				end
-			end)
-		else
-			Library:Notify("Auto Submit Craft Plant disabled!", 3)
-		end
-	end,
+                    -- Wait before checking again
+                    task.wait(3)
+                end
+            end)
+        else
+            Library:Notify("Auto Craft disabled", 3)
+        end
+    end,
 })
 
-HoneyCrafterGroupBox:AddButton("Check Crafter Recipe", function()
-	local crafterData = DataService:GetData().HoneyCrafterEventData
-	if crafterData and crafterData.CraftingRecipe then
-		local recipe = crafterData.CraftingRecipe
-		local rewardData = require(ReplicatedStorage.Data.HoneyCrafterRewardData)[crafterData.Progression]
+-- Function to check if player has all required items for a recipe
+function checkInventoryForRecipe(recipeName)
+    print("[DEBUG_LOG] Checking inventory for recipe:", recipeName)
 
-		Library:Notify(
-				string.format(
-						"🔍 Need: %s (%s) + %d Honey | Reward: %dx %s",
-						recipe.RequiredPlant,
-						recipe.RequiredPlantMutation or "Any",
-						recipe.HoneyAmountRequired,
-						rewardData.ItemAmount,
-						rewardData.ItemName
-				),
-				6
-		)
-	else
-		Library:Notify("❌ Could not get crafter recipe data!", 3)
-	end
+    -- Get recipe data
+    local RecipeRegistry = require(ReplicatedStorage.Data.CraftingData.CraftingRecipeRegistry)
+    local recipe = RecipeRegistry.ItemRecipes[recipeName]
+
+    if not recipe then
+        print("[DEBUG_LOG] Recipe not found:", recipeName)
+        return false
+    end
+
+    -- First, claim the recipe
+    print("[DEBUG_LOG] Claiming recipe:", recipeName)
+    local success = claimRecipe(recipeName)
+    if success then
+        print("[DEBUG_LOG] Successfully claimed recipe:", recipeName)
+    else
+        print("[DEBUG_LOG] Failed to claim recipe:", recipeName)
+        -- Continue anyway, as we might already have the recipe
+    end
+
+    -- Check if player has all required inputs
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    local character = LocalPlayer.Character
+
+    if not backpack or not character then
+        print("[DEBUG_LOG] Backpack or character not found")
+        return false
+    end
+
+    -- Create a list of required items
+    local requiredItems = {}
+    for _, input in ipairs(recipe.Inputs) do
+        local itemName = input.ItemData.ItemName
+        requiredItems[itemName] = (requiredItems[itemName] or 0) + 1
+    end
+
+    -- Check if player has all required items
+    local playerItems = {}
+    local itemsFound = {} -- Track which items we've found for detailed logging
+
+    -- Function to check if an item matches a required item
+    local function isMatchingItem(itemName, requiredItemName)
+        -- Exact match
+        if itemName == requiredItemName then
+            return true
+        end
+
+        -- Strip brackets and their contents for comparison
+        local cleanItemName = itemName:gsub("%s*%[.*%]%s*", "")
+
+        -- Check if the cleaned name matches
+        if cleanItemName == requiredItemName then
+            print("[DEBUG_LOG] Found item with brackets:", itemName, "matches", requiredItemName)
+            return true
+        end
+
+        -- Check if it's a seed version of the item
+        local itemNameLower = cleanItemName:lower()
+        local requiredItemNameLower = requiredItemName:lower()
+
+        -- If the item contains the required name and has "seed" in it
+        if string.find(itemNameLower, requiredItemNameLower) and string.find(itemNameLower, "seed") then
+            print("[DEBUG_LOG] Found seed version of required item:", itemName, "for", requiredItemName)
+            return true
+        end
+
+        -- Check if the item name starts with the required name (partial match)
+        if string.find(itemNameLower, "^" .. requiredItemNameLower) then
+            print("[DEBUG_LOG] Found item starting with required name:", itemName, "for", requiredItemName)
+            return true
+        end
+
+        return false
+    end
+
+    -- Check backpack
+    for _, item in pairs(backpack:GetChildren()) do
+        if item:IsA("Tool") then
+            local itemName = item.Name
+            print("[DEBUG_LOG] Checking inventory item:", itemName)
+
+            -- Check if this item matches any required item
+            for reqItemName, _ in pairs(requiredItems) do
+                if isMatchingItem(itemName, reqItemName) then
+                    print("[DEBUG_LOG] Item matches requirement:", itemName, "->", reqItemName)
+                    playerItems[reqItemName] = (playerItems[reqItemName] or 0) + 1
+                    itemsFound[reqItemName] = itemsFound[reqItemName] or {}
+                    table.insert(itemsFound[reqItemName], itemName)
+                end
+            end
+        end
+    end
+
+    -- Check equipped items
+    for _, item in pairs(character:GetChildren()) do
+        if item:IsA("Tool") then
+            local itemName = item.Name
+            print("[DEBUG_LOG] Checking equipped item:", itemName)
+
+            -- Check if this item matches any required item
+            for reqItemName, _ in pairs(requiredItems) do
+                if isMatchingItem(itemName, reqItemName) then
+                    print("[DEBUG_LOG] Equipped item matches requirement:", itemName, "->", reqItemName)
+                    playerItems[reqItemName] = (playerItems[reqItemName] or 0) + 1
+                    itemsFound[reqItemName] = itemsFound[reqItemName] or {}
+                    table.insert(itemsFound[reqItemName], itemName)
+                end
+            end
+        end
+    end
+
+    -- Print detailed inventory report
+    print("[DEBUG_LOG] === INVENTORY REPORT ===")
+    for reqItemName, count in pairs(requiredItems) do
+        local playerCount = playerItems[reqItemName] or 0
+        print("[DEBUG_LOG] Required item:", reqItemName, "- Have:", playerCount, "Need:", count)
+        if itemsFound[reqItemName] then
+            print("[DEBUG_LOG]   Found as:", table.concat(itemsFound[reqItemName], ", "))
+        end
+    end
+    print("[DEBUG_LOG] === END INVENTORY REPORT ===")
+
+    -- Log all inventory items for debugging
+    print("[DEBUG_LOG] All inventory items:")
+    for _, item in pairs(backpack:GetChildren()) do
+        if item:IsA("Tool") then
+            print("[DEBUG_LOG] Backpack item:", item.Name)
+        end
+    end
+    for _, item in pairs(character:GetChildren()) do
+        if item:IsA("Tool") then
+            print("[DEBUG_LOG] Equipped item:", item.Name)
+        end
+    end
+
+    -- Check if player has all required items and collect missing items
+    local missingItems = {}
+    local totalRequired = 0
+    local totalMissing = 0
+
+    for itemName, count in pairs(requiredItems) do
+        totalRequired = totalRequired + 1
+        local playerCount = playerItems[itemName] or 0
+        if playerCount < count then
+            missingItems[itemName] = {have = playerCount, need = count}
+            totalMissing = totalMissing + 1
+            print("[DEBUG_LOG] Missing item:", itemName, "- Have:", playerCount, "Need:", count)
+        end
+    end
+
+    if totalMissing > 0 then
+        print("[DEBUG_LOG] Missing items for recipe:", recipeName)
+        return false, missingItems, totalRequired
+    end
+
+    print("[DEBUG_LOG] Player has all items for recipe:", recipeName)
+    return true
+end
+
+-- Function to claim a recipe
+function claimRecipe(recipeName)
+    print("[DEBUG_LOG] Attempting to claim recipe:", recipeName)
+
+    -- Get recipe data
+    local RecipeRegistry = require(ReplicatedStorage.Data.CraftingData.CraftingRecipeRegistry)
+    local recipe = RecipeRegistry.ItemRecipes[recipeName]
+
+    if not recipe then
+        print("[DEBUG_LOG] Recipe not found:", recipeName)
+        return false
+    end
+
+    -- Determine which crafting station to use based on recipe's MachineTypes
+    local craftingStationType = recipe.MachineTypes[1] -- Use the first machine type
+    local craftingStationName = ""
+
+    if craftingStationType == "GearEventWorkbench" then
+        craftingStationName = "EventCraftingWorkBench"
+    elseif craftingStationType == "SeedEventWorkbench" then
+        craftingStationName = "SeedEventCraftingWorkBench"
+    else
+        print("[DEBUG_LOG] Unknown crafting station type:", craftingStationType)
+        return false
+    end
+
+    -- Find the crafting station in the workspace
+    local craftingStation = workspace:FindFirstChild(craftingStationName, true)
+    if not craftingStation then
+        print("[DEBUG_LOG] Crafting station not found:", craftingStationName)
+        return false
+    end
+
+    -- Try to claim the recipe
+    local CraftingGlobalObjectService = require(ReplicatedStorage.Modules.CraftingService.CraftingGlobalObjectService)
+    local success = pcall(function()
+        CraftingGlobalObjectService:SetRecipe(craftingStation, craftingStation:GetAttribute("CraftingObjectType"), recipeName)
+    end)
+
+    if success then
+        print("[DEBUG_LOG] Successfully claimed recipe:", recipeName)
+        return true
+    else
+        print("[DEBUG_LOG] Failed to claim recipe:", recipeName)
+        return false
+    end
+end
+
+-- Function to teleport to crafter and craft the recipe
+function teleportToCrafterAndCraft(recipeName)
+    print("[DEBUG_LOG] Checking if player has all items for recipe:", recipeName)
+
+    -- First, check if player has all required items
+    local hasAllItems, missingItems, totalRequired = checkInventoryForRecipe(recipeName)
+    if not hasAllItems then
+        print("[DEBUG_LOG] Player doesn't have all required items for recipe:", recipeName)
+
+        -- Create a more informative error message
+        local missingItemsCount = 0
+        local missingItemsList = ""
+        for itemName, info in pairs(missingItems or {}) do
+            missingItemsCount = missingItemsCount + 1
+            missingItemsList = missingItemsList .. "\n• " .. itemName .. " - Have: " .. info.have .. " Need: " .. info.need
+        end
+
+        local message = "Missing " .. missingItemsCount .. " of " .. (totalRequired or "?") .. " items needed for " .. recipeName .. ":" .. missingItemsList
+        Library:Notify(message, 5)
+        return false
+    end
+
+    print("[DEBUG_LOG] Player has all items for recipe:", recipeName)
+    print("[DEBUG_LOG] Teleporting to crafter for recipe:", recipeName)
+
+    -- Get recipe data
+    local RecipeRegistry = require(ReplicatedStorage.Data.CraftingData.CraftingRecipeRegistry)
+    local recipe = RecipeRegistry.ItemRecipes[recipeName]
+
+    if not recipe then
+        print("[DEBUG_LOG] Recipe not found:", recipeName)
+        return false
+    end
+
+    -- Determine which crafting station to use based on recipe's MachineTypes
+    local craftingStationType = recipe.MachineTypes[1] -- Use the first machine type
+    local craftingStationName = ""
+
+    if craftingStationType == "GearEventWorkbench" then
+        craftingStationName = "EventCraftingWorkBench"
+    elseif craftingStationType == "SeedEventWorkbench" then
+        craftingStationName = "SeedEventCraftingWorkBench"
+    else
+        print("[DEBUG_LOG] Unknown crafting station type:", craftingStationType)
+        return false
+    end
+
+    -- Find the crafting station in the workspace
+    local craftingStation = workspace:FindFirstChild(craftingStationName, true)
+    if not craftingStation then
+        print("[DEBUG_LOG] Crafting station not found:", craftingStationName)
+        return false
+    end
+
+    -- Store original position
+    local originalPosition = nil
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        originalPosition = LocalPlayer.Character.HumanoidRootPart.Position
+    else
+        print("[DEBUG_LOG] Character or HumanoidRootPart not found")
+        return false
+    end
+
+    -- Teleport to crafting station
+    local craftingStationPosition = craftingStation:GetPivot().Position
+    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(craftingStationPosition + Vector3.new(0, 3, 0))
+    print("[DEBUG_LOG] Teleported to crafting station:", craftingStationName)
+
+    -- Wait for teleport to register
+    task.wait(1)
+
+    -- Ensure we're holding the fruit (first required item)
+    local firstRequiredItem = recipe.Inputs[1].ItemData.ItemName
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    local itemEquipped = false
+
+    if backpack then
+        for _, item in pairs(backpack:GetChildren()) do
+            if item:IsA("Tool") and item.Name == firstRequiredItem then
+                -- Equip the item
+                LocalPlayer.Character.Humanoid:EquipTool(item)
+                print("[DEBUG_LOG] Equipped required item:", firstRequiredItem)
+                itemEquipped = true
+                break
+            end
+        end
+    end
+
+    -- Wait for equip to register
+    task.wait(0.5)
+
+    -- Verify the item is actually equipped
+    local currentTool = LocalPlayer.Character:FindFirstChildWhichIsA("Tool")
+    if not currentTool or currentTool.Name ~= firstRequiredItem then
+        print("[DEBUG_LOG] Failed to equip required item:", firstRequiredItem)
+        Library:Notify("You must equip " .. firstRequiredItem .. " before crafting " .. recipeName, 5)
+
+        -- Return to original position if item not equipped
+        if originalPosition then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
+            print("[DEBUG_LOG] Returned to original position")
+        end
+
+        return false
+    end
+
+    print("[DEBUG_LOG] Verified item is equipped:", firstRequiredItem)
+
+    -- Interact with crafting station (trigger proximity prompt)
+    local proximityPrompt = craftingStation:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if proximityPrompt then
+        -- We can't directly fire the proximity prompt, but we can try to get close enough
+        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(proximityPrompt.Parent.Position + Vector3.new(0, 2, 0))
+        print("[DEBUG_LOG] Positioned near proximity prompt")
+
+        -- Wait for interaction
+        task.wait(1)
+
+        -- Try to select the recipe
+        local CraftingGlobalObjectService = require(ReplicatedStorage.Modules.CraftingService.CraftingGlobalObjectService)
+        local success = pcall(function()
+            CraftingGlobalObjectService:SetRecipe(craftingStation, craftingStation:GetAttribute("CraftingObjectType"), recipeName)
+        end)
+
+        if success then
+            print("[DEBUG_LOG] Successfully selected recipe:", recipeName)
+
+            -- Wait for recipe selection to register
+            task.wait(1)
+
+            -- Start crafting
+            local CraftingStationHandler = require(ReplicatedStorage.Modules.CraftingStationHandler)
+            success = pcall(function()
+                CraftingStationHandler.StartCrafting(craftingStation)
+            end)
+
+            if success then
+                print("[DEBUG_LOG] Successfully started crafting:", recipeName)
+                Library:Notify("Successfully started crafting " .. recipeName, 3)
+                return true
+            else
+                print("[DEBUG_LOG] Failed to start crafting:", recipeName)
+                Library:Notify("Failed to start crafting " .. recipeName, 3)
+            end
+        else
+            print("[DEBUG_LOG] Failed to select recipe:", recipeName)
+            Library:Notify("Failed to select recipe " .. recipeName, 3)
+        end
+    else
+        print("[DEBUG_LOG] Proximity prompt not found on crafting station")
+        Library:Notify("Proximity prompt not found on crafting station", 3)
+    end
+
+    -- Return to original position if crafting failed
+    if originalPosition then
+        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
+        print("[DEBUG_LOG] Returned to original position")
+    end
+
+    return false
+end
+
+-- Add button to manually check for craftable recipes
+CraftingGroupBox:AddButton("Check Craftable Recipes", function()
+    local craftableRecipes = {}
+    local count = 0
+
+    for recipe, selected in pairs(SelectedCraftRecipes) do
+        if selected then
+            local hasAllItems = checkInventoryForRecipe(recipe)
+            if hasAllItems then
+                table.insert(craftableRecipes, recipe)
+                count = count + 1
+            end
+        end
+    end
+
+    if count > 0 then
+        local message = "Craftable recipes:\n"
+        for _, recipe in ipairs(craftableRecipes) do
+            message = message .. "✅ " .. recipe .. "\n"
+        end
+        Library:Notify(message, 5)
+    else
+        Library:Notify("No selected recipes can be crafted with current inventory", 3)
+    end
 end)
-
-HoneyCrafterGroupBox:AddButton("🔄 Teleport to Honey Crafter", function()
-	-- Direct approach to find the 16circle object
-	local sixteenCircle = nil
-
-	-- First try with the exact path from the image
-	local interaction = workspace:FindFirstChild("Interaction")
-	if interaction then
-		local updateItems = interaction:FindFirstChild("UpdateItems")
-		if updateItems then
-			local honeyCrafter = updateItems:FindFirstChild("HoneyCrafter")
-			if honeyCrafter then
-				-- Try to find the exact 16circle object (not a child of 16circle)
-				sixteenCircle = honeyCrafter:FindFirstChild("16circle")
-
-				-- If there's no direct 16circle, look for the 16circle folder and its child
-				if not sixteenCircle then
-					local circleFolder = honeyCrafter:FindFirstChild("16circle", true)
-					if circleFolder and circleFolder:IsA("Folder") then
-						sixteenCircle = circleFolder:FindFirstChild("16circle")
-					end
-				end
-			end
-		end
-	end
-
-	-- If still not found, try a broader search
-	if not sixteenCircle then
-		sixteenCircle = workspace:FindFirstChild("16circle", true)
-	end
-
-	if sixteenCircle then
-		-- Find a specific Part inside the 16circle model to teleport to
-		local targetPart = nil
-
-		-- Check all Part objects in the model
-		for _, part in pairs(sixteenCircle:GetDescendants()) do
-			if part:IsA("Part") then
-				-- If we haven't found a part yet, use this one
-				if not targetPart then
-					targetPart = part
-				end
-				-- If this part is near the center, prefer it
-				-- (we're looking for the central/blue highlighted part)
-				local partPosition = part.Position
-				local modelPosition = sixteenCircle:GetPivot().Position
-				local distance = (partPosition - modelPosition).Magnitude
-				if distance < 5 then -- If part is within 5 studs of center
-					targetPart = part
-					break
-				end
-			end
-		end
-
-		-- If we found a suitable part, teleport to it
-		if targetPart then
-			-- Calculate the absolute center position of the part
-			local partCenter = targetPart.Position
-			-- Create a new CFrame at the center position + height (reduced from 8 to 3)
-			local targetCFrame = CFrame.new(partCenter.X, partCenter.Y + 3, partCenter.Z)
-			LocalPlayer.Character.HumanoidRootPart.CFrame = targetCFrame
-			Library:Notify("🔄 Teleported to Honey Crafter (exact center)!", 3)
-		else
-			-- Fallback to the previous approach
-			local modelSize = sixteenCircle:GetExtentsSize()
-			local targetCFrame = sixteenCircle:GetPivot() * CFrame.new(0, modelSize.Y / 2 + 5, 0)
-			LocalPlayer.Character.HumanoidRootPart.CFrame = targetCFrame
-			Library:Notify("🔄 Teleported to Honey Crafter (16circle)!", 3)
-		end
-	else
-		-- Fallback to HoneyCrafter_HoneyStation if 16circle isn't found
-		local honeyCrafter = workspace:FindFirstChild("HoneyCrafter_HoneyStation", true)
-		if honeyCrafter then
-			local targetCFrame = honeyCrafter:GetPivot() * CFrame.new(0, 5, 5)
-			LocalPlayer.Character.HumanoidRootPart.CFrame = targetCFrame
-			Library:Notify("🔄 Teleported to Honey Crafter (fallback)!", 3)
-		else
-			Library:Notify("❌ Could not find Honey Crafter!", 3)
-		end
-	end
-end)
-
--- Debug button removed to clean up the script
-
-HoneyCrafterGroupBox:AddToggle("AutoCraftComplete", {
-	Text = "🔄 Auto Complete Crafting",
-	Default = false,
-	Tooltip = "Automatically completes the full crafting process by finding required plants",
-
-	Callback = function(Value)
-		getgenv().AutoCraftCompleteEnabled = Value
-		if Value then
-			Library:Notify("🔄 Auto Complete Crafting enabled!", 3)
-
-			-- Track player's original position
-			local playerOriginalPosition = nil
-
-			task.spawn(function()
-				while getgenv().AutoCraftCompleteEnabled do
-					-- Get the latest crafter data
-					local success, crafterData = pcall(function()
-						return DataService:GetData().HoneyCrafterEventData
-					end)
-
-					if not success or not crafterData then
-						print("Failed to get HoneyCrafterEventData:", crafterData)
-						Library:Notify("Couldn't access crafting data! Retrying...", 3)
-						task.wait(5)
-						continue
-					end -- First check if we need to claim a reward (both requirements met)
-					if crafterData.HoneyRequirementMet and crafterData.PlantRequirementMet then
-						print("Both honey and plant requirements met! Crafting item...")
-						Library:Notify("Crafting complete! Claiming reward...", 3) -- Teleport to honey station first for better reliability
-						local honeyStation = workspace:FindFirstChild("HoneyCrafter_HoneyStation", true)
-						if honeyStation then
-							-- Save player position if we don't have it yet
-							if
-							not playerOriginalPosition
-									and LocalPlayer.Character
-									and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-							then
-								playerOriginalPosition = LocalPlayer.Character.HumanoidRootPart.CFrame
-								print("📍 Saved original position before teleporting to claim reward")
-							end
-
-							-- Get the exact position from the blue highlighted honey station
-							local targetPosition
-							if honeyStation:IsA("Model") and honeyStation.PrimaryPart then
-								-- If it's a model with PrimaryPart, use that
-								targetPosition = honeyStation.PrimaryPart.CFrame * CFrame.new(0, 3, 0)
-							elseif honeyStation:IsA("BasePart") then
-								-- If it's a part, use its CFrame
-								targetPosition = honeyStation.CFrame * CFrame.new(0, 3, 0)
-							else
-								-- Fallback to GetPivot for newer Roblox versions
-								targetPosition = honeyStation:GetPivot() * CFrame.new(0, 3, 0)
-							end
-
-							-- Teleport to the honey station
-							LocalPlayer.Character.HumanoidRootPart.CFrame = targetPosition
-							print("🚀 Teleported to honey station to craft item")
-							Library:Notify("🚀 Teleported to craft item", 3)
-
-							-- Wait a moment for teleport to complete
-							task.wait(1)
-
-							-- Use CraftItem command (correct command based on NPC dialogue analysis)
-							pcall(function()
-								ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer("CraftItem")
-							end)
-							print("🔨 Sent CraftItem command")
-
-							-- Wait for crafting to process
-							task.wait(3)
-
-							-- Return to original position
-							if playerOriginalPosition then
-								LocalPlayer.Character.HumanoidRootPart.CFrame = playerOriginalPosition
-								print("🔄 Returned to original position after crafting")
-								Library:Notify("🔄 Returned to original position", 2)
-							end
-						else
-							-- Fallback: try direct crafting without teleport
-							print("⚠️ Honey station not found, trying direct craft...")
-							pcall(function()
-								ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer("CraftItem")
-							end)
-							task.wait(3)
-						end
-
-						-- Continue to the next cycle
-						task.wait(2)
-						continue
-					end
-
-					-- Submit honey if needed
-					if not crafterData.HoneyRequirementMet then
-						print("Submitting honey...")
-						Library:Notify("Submitting honey...", 2)
-
-						-- Find honey station for teleport if direct submission fails
-						local honeyStation = workspace:FindFirstChild("HoneyCrafterPrompt_Honey", true)
-						local honeyParent = honeyStation and honeyStation.Parent
-
-						-- Try direct submission first
-						local submitResult = pcall(function()
-							ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer("SubmitHoney")
-						end)
-
-						-- If direct submission fails, teleport to honey prompt
-						if not submitResult and honeyStation then
-							-- Save player position if we don't have it yet
-							if
-							not playerOriginalPosition
-									and LocalPlayer.Character
-									and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-							then
-								playerOriginalPosition = LocalPlayer.Character.HumanoidRootPart.CFrame
-								print("📍 Saved original position before teleporting to honey station")
-							end
-
-							-- Get position from prompt parent
-							if honeyParent and honeyParent:IsA("BasePart") then
-								LocalPlayer.Character.HumanoidRootPart.CFrame =
-								CFrame.new(honeyParent.Position + Vector3.new(0, 3, 0))
-								print("🚀 Teleported to honey station")
-								Library:Notify("🚀 Teleported to honey station", 2)
-
-								-- Try submission again
-								task.wait(1)
-								pcall(function()
-									ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer("SubmitHoney")
-								end)
-
-								-- Return to original position
-								task.wait(1.5)
-								if playerOriginalPosition then
-									LocalPlayer.Character.HumanoidRootPart.CFrame = playerOriginalPosition
-									print("🔄 Returned to original position after honey submission")
-									Library:Notify("🔄 Returned to original position", 2)
-								end
-							end
-						end
-
-						-- Wait for honey submission to register
-						task.wait(2)
-
-						-- Refresh data
-						success, crafterData = pcall(function()
-							return DataService:GetData().HoneyCrafterEventData
-						end)
-
-						if success and crafterData and crafterData.HoneyRequirementMet then
-							Library:Notify("✅ Honey requirement met!", 3)
-						end
-					end
-
-					-- Handle plant requirement if not met
-					if success and crafterData and not crafterData.PlantRequirementMet then
-						print("🌱 Checking for required plant...")
-
-						-- Refresh crafter data to get the latest required plant
-						success, crafterData = pcall(function()
-							return DataService:GetData().HoneyCrafterEventData
-						end)
-
-						if not success or not crafterData then
-							print("Failed to refresh crafter data")
-							task.wait(3)
-							continue
-						end
-
-						local requiredPlant = crafterData.CraftingRecipe.RequiredPlant
-						local requiredMutation = crafterData.CraftingRecipe.RequiredPlantMutation
-						local requiredVariant = crafterData.CraftingRecipe.RequiredPlantVariant
-
-						Library:Notify(
-								"🔍 Need: "
-										.. requiredPlant
-										.. (requiredMutation and (" [" .. requiredMutation .. "]") or "")
-										.. (requiredVariant and (" [" .. requiredVariant .. "]") or ""),
-								3
-						)
-
-						-- Check if player is holding the required plant
-						local heldTool = nil
-						for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
-							if tool:IsA("Tool") and tool:HasTag("FruitTool") and tool:GetAttribute("ITEM_UUID") then
-								local inventoryService = require(ReplicatedStorage.Modules.InventoryService)
-								local toolData = inventoryService and inventoryService:GetToolData(tool)
-
-								if toolData and toolData.ItemData and toolData.ItemData.ItemName == requiredPlant then
-									-- Check mutation if required
-									if
-									(requiredMutation == nil or tool:GetAttribute(requiredMutation))
-											and (requiredVariant == nil or tool:GetAttribute("Variant") == requiredVariant)
-									then
-										heldTool = tool
-										print("✅ Found required plant in hand: " .. tool.Name)
-										break
-									end
-								end
-							end
-						end
-
-						-- If not holding required plant, check backpack
-						if not heldTool then
-							local backpack = LocalPlayer:FindFirstChild("Backpack")
-							if backpack then
-								for _, tool in pairs(backpack:GetChildren()) do
-									if
-									tool:IsA("Tool")
-											and tool:HasTag("FruitTool")
-											and tool:GetAttribute("ITEM_UUID")
-									then
-										local inventoryService = require(ReplicatedStorage.Modules.InventoryService)
-										local toolData = inventoryService and inventoryService:GetToolData(tool)
-
-										if
-										toolData
-												and toolData.ItemData
-												and toolData.ItemData.ItemName == requiredPlant
-										then
-											if
-											(requiredMutation == nil or tool:GetAttribute(requiredMutation))
-													and (
-													requiredVariant == nil
-															or tool:GetAttribute("Variant") == requiredVariant
-											)
-											then
-												-- Equip the plant
-												LocalPlayer.Character.Humanoid:EquipTool(tool)
-												heldTool = tool
-												print("🔄 Equipped required plant from backpack: " .. tool.Name)
-												Library:Notify("🔄 Equipped " .. requiredPlant, 2)
-												task.wait(0.5)
-												break
-											end
-										end
-									end
-								end
-							end
-						end
-
-						-- If we found the required plant, submit it
-						if heldTool then
-							-- Find plant submission station
-							local plantStation = workspace:FindFirstChild("HoneyCrafterPrompt_Plant", true)
-
-							-- Save player position if we don't have it yet
-							if
-							not playerOriginalPosition
-									and LocalPlayer.Character
-									and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-							then
-								playerOriginalPosition = LocalPlayer.Character.HumanoidRootPart.CFrame
-								print("📍 Saved original position before teleporting to plant station")
-							end
-
-							-- Try direct submission first
-							local directSubmit = pcall(function()
-								ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer("SubmitHeldPlant")
-							end)
-
-							if not directSubmit and plantStation then
-								-- Get the part that contains the proximity prompt
-								local parentPart = plantStation.Parent
-								if not parentPart:IsA("BasePart") then
-									parentPart = parentPart.Parent
-								end
-
-								if parentPart then
-									-- Teleport to plant station
-									LocalPlayer.Character.HumanoidRootPart.CFrame =
-									CFrame.new(parentPart.Position + Vector3.new(0, 3, 0))
-									print("🚀 Teleported to plant submission station")
-									Library:Notify("🚀 Teleported to plant station", 2)
-
-									-- Try submission again after teleporting
-									task.wait(0.5)
-									pcall(function()
-										ReplicatedStorage.GameEvents.HoneyCrafterRemoteEvent:FireServer(
-												"SubmitHeldPlant"
-										)
-										-- Removed direct proximity prompt firing due to permission issues
-										-- fireproximityprompt(plantStation)
-									end)
-
-									-- Wait for submission to register
-									task.wait(1.5)
-
-									-- Return to original position
-									if playerOriginalPosition then
-										LocalPlayer.Character.HumanoidRootPart.CFrame = playerOriginalPosition
-										print("🔄 Returned to original position after plant submission")
-										Library:Notify("🔄 Returned to original position", 2)
-									end
-								end
-							end
-
-							-- Wait a bit and check if submission worked
-							task.wait(2)
-							success, crafterData = pcall(function()
-								return DataService:GetData().HoneyCrafterEventData
-							end)
-
-							if success and crafterData and crafterData.PlantRequirementMet then
-								Library:Notify("✅ Plant requirement met! Ready to collect reward.", 3)
-							else
-								Library:Notify("❌ Plant submission failed or didn't register", 3)
-							end
-						else
-							Library:Notify("❌ Required plant not found in inventory: " .. requiredPlant, 4)
-							print("❌ Couldn't find required plant in inventory: " .. requiredPlant)
-						end
-					end
-
-					-- Wait before next check cycle
-					task.wait(3)
-				end
-
-				-- Reset position tracking when disabled
-				playerOriginalPosition = nil
-			end)
-		else
-			Library:Notify("🔄 Auto Complete Crafting disabled!", 3)
-			getgenv().AutoCraftCompleteEnabled = false
-		end
-	end,
-})
 
 -- Auto Farm Tab Variables
 local AutoCollectPlantsEnabled = false
@@ -4947,6 +4738,267 @@ local function autoFeedPets()
 end
 
 -- Pet Tab UI
+-- Auto Buy Pet Egg Group Box
+local PetAutoBuyGroupBox = Tabs.Pet:AddRightGroupbox("Auto Buy Pet Eggs")
+
+-- List of available pet eggs
+local PetEggTypes = {
+    "Common Egg",
+    "Uncommon Egg",
+    "Rare Egg",
+    "Legendary Egg",
+    "Mythical Egg",
+    "Bug Egg"
+}
+
+-- Selected eggs for auto buying
+local SelectedPetEggs = {}
+local AutoBuyPetEggEnabled = false
+
+-- Track purchased eggs to avoid buying the same egg multiple times
+local PurchasedPetEggs = {}
+
+-- Add multi-select dropdown for pet eggs
+PetAutoBuyGroupBox:AddDropdown("PetEggsList", {
+    Values = PetEggTypes,
+    Default = 1,
+    Multi = true, -- Allow multiple selections
+
+    Text = "Select Eggs to Buy",
+    Tooltip = "Choose which pet eggs to automatically purchase",
+
+    Callback = function(Value)
+        print("[cb] Selected eggs for auto-buy:", Value)
+        SelectedPetEggs = Value
+    end,
+})
+
+-- Add toggle for auto-buying pet eggs
+PetAutoBuyGroupBox:AddToggle("AutoBuyPetEggs", {
+    Text = "Auto Buy Pet Eggs",
+    Tooltip = "Automatically purchase selected pet eggs when available",
+    Default = false,
+    Callback = function(Value)
+        print("[cb] Auto Buy Pet Eggs toggled:", Value)
+        AutoBuyPetEggEnabled = Value
+
+        if Value then
+            -- Start auto buying loop
+            task.spawn(function()
+                while AutoBuyPetEggEnabled and Toggles.AutoBuyPetEggs.Value do
+                    -- Check if any eggs are selected
+                    local hasSelectedEggs = false
+                    for eggName, selected in pairs(SelectedPetEggs) do
+                        if selected then
+                            hasSelectedEggs = true
+                            break
+                        end
+                    end
+
+                    if hasSelectedEggs then
+                        -- Try to buy all eggs of each selected type
+                        local eggTypesBought = {}
+
+                        for _, eggName in ipairs(PetEggTypes) do
+                            -- Check if this egg is selected
+                            if SelectedPetEggs[eggName] and AutoBuyPetEggEnabled and Toggles.AutoBuyPetEggs.Value then
+                                print("[DEBUG_LOG] Attempting to buy all eggs of type:", eggName)
+
+                                -- Attempt to buy all eggs of this type
+                                local success = buyPetEgg(eggName)
+
+                                if success then
+                                    table.insert(eggTypesBought, eggName)
+                                end
+
+                                -- Wait between different egg types
+                                task.wait(1)
+                            end
+                        end
+                    else
+                        -- Notification removed as requested
+                    end
+
+                    -- Wait before checking again
+                    task.wait(3)
+                end
+            end)
+
+            -- Notifications removed as requested
+        else
+            -- Notifications removed as requested
+        end
+    end,
+})
+
+-- Add button to manually buy selected eggs
+PetAutoBuyGroupBox:AddButton("Buy Selected Eggs Now", function()
+    -- Try to buy all eggs of each selected type
+    local totalEggsBought = 0
+    local eggTypesBought = {}
+
+    for _, eggName in ipairs(PetEggTypes) do
+        -- Check if this egg is selected
+        if SelectedPetEggs[eggName] then
+            print("[DEBUG_LOG] Attempting to buy all eggs of type:", eggName)
+
+            -- Attempt to buy all eggs of this type
+            local success = buyPetEgg(eggName)
+
+            if success then
+                table.insert(eggTypesBought, eggName)
+                totalEggsBought = totalEggsBought + 1
+            end
+
+            -- Wait between different egg types
+            task.wait(1)
+        end
+    end
+
+    -- Show a notification with the total number of egg types bought
+    if totalEggsBought > 0 then
+        local eggTypesText = table.concat(eggTypesBought, ", ")
+        Library:Notify("Bought eggs of type(s): " .. eggTypesText, 3)
+    else
+        Library:Notify("No eggs purchased. Check selection or availability.", 3)
+    end
+end)
+
+-- Add button to reset purchased eggs tracking
+PetAutoBuyGroupBox:AddButton("Reset Purchased Eggs Tracking", function()
+    -- Clear the purchased eggs tracking
+    PurchasedPetEggs = {}
+end)
+
+-- Function to automatically reset purchased eggs tracking when shop refreshes
+local function resetPurchasedEggsOnShopRefresh()
+    -- Check if the PetEggShopData module exists
+    local success, PetEggShopData = pcall(function()
+        return require(ReplicatedStorage.Data.PetEggShopData)
+    end)
+
+    if not success or not PetEggShopData then
+        print("[DEBUG_LOG] Could not load PetEggShopData module")
+        return
+    end
+
+    -- Get the refresh time from the module
+    local refreshTime = PetEggShopData.RefreshTime or 1800 -- Default to 30 minutes if not specified
+
+    -- Start a loop to check for shop refresh
+    task.spawn(function()
+        while true do
+            task.wait(refreshTime)
+            -- Reset the purchased eggs tracking
+            PurchasedPetEggs = {}
+            print("[DEBUG_LOG] Shop refreshed, reset purchased eggs tracking")
+        end
+    end)
+end
+
+-- Start the auto-reset function
+resetPurchasedEggsOnShopRefresh()
+
+-- Function to buy a pet egg
+function buyPetEgg(eggName)
+    print("[DEBUG_LOG] Attempting to buy pet egg:", eggName)
+
+    -- Access the shop data to find all eggs of the selected type
+    local DataService = require(ReplicatedStorage.Modules.DataService)
+    local shopData = DataService:GetData().PetEggStock.Stocks
+
+    if not shopData then
+        print("[DEBUG_LOG] Could not access shop data")
+        return false
+    end
+
+    -- Track if we bought any eggs
+    local boughtAny = false
+    local eggsBought = 0
+
+    -- Iterate through all eggs in the shop
+    for shopIndex, eggData in pairs(shopData) do
+        -- Check if this egg matches the selected type
+        if eggData.EggName == eggName then
+            print("[DEBUG_LOG] Found egg in shop:", eggName, "at index:", shopIndex)
+
+            -- Check if this specific egg has already been purchased
+            if PurchasedPetEggs[shopIndex] then
+                print("[DEBUG_LOG] Egg at index", shopIndex, "already purchased in this session")
+                -- Continue to the next egg
+            else
+                -- Find the BuyPetEgg remote event
+                local buyPetEgg = ReplicatedStorage.GameEvents:FindFirstChild("BuyPetEgg")
+
+                if buyPetEgg then
+                    -- Fire the remote event to buy the egg with the shop index
+                    print("[DEBUG_LOG] Sending buy request for egg at shop index:", shopIndex)
+
+                    -- Fire the remote event
+                    buyPetEgg:FireServer(shopIndex)
+
+                    -- Log additional information for debugging
+                    print("[DEBUG_LOG] Buy request sent for egg:", eggName, "with shop index:", shopIndex)
+
+                    -- Mark this specific egg as purchased in this session
+                    PurchasedPetEggs[shopIndex] = true
+
+                    -- Track that we bought at least one egg
+                    boughtAny = true
+                    eggsBought = eggsBought + 1
+
+                    -- Wait a bit before buying the next egg to avoid rate limiting
+                    task.wait(0.5)
+                else
+                    -- Try alternative remote event names as fallback
+                    local alternativeEvents = {
+                        "BuyPetEggStock",
+                        "BuyEgg",
+                        "PurchaseEgg"
+                    }
+
+                    local usedAlternative = false
+
+                    for _, eventName in ipairs(alternativeEvents) do
+                        local event = ReplicatedStorage.GameEvents:FindFirstChild(eventName)
+                        if event then
+                            print("[DEBUG_LOG] Using alternative event:", eventName, "for egg at shop index:", shopIndex)
+
+                            -- Fire the remote event
+                            event:FireServer(shopIndex)
+
+                            -- Log additional information for debugging
+                            print("[DEBUG_LOG] Buy request sent using alternative event:", eventName, "for egg:", eggName, "with shop index:", shopIndex)
+
+                            -- Mark this specific egg as purchased in this session
+                            PurchasedPetEggs[shopIndex] = true
+
+                            -- Track that we bought at least one egg
+                            boughtAny = true
+                            eggsBought = eggsBought + 1
+
+                            usedAlternative = true
+
+                            -- Wait a bit before buying the next egg to avoid rate limiting
+                            task.wait(0.5)
+
+                            break
+                        end
+                    end
+
+                    if not usedAlternative then
+                        print("[DEBUG_LOG] Could not find appropriate remote event to buy pet egg")
+                    end
+                end
+            end
+        end
+    end
+
+    print("[DEBUG_LOG] Bought", eggsBought, "eggs of type:", eggName)
+
+    return boughtAny
+end
+
 local PetAutoFeedGroupBox = Tabs.Pet:AddLeftGroupbox("Auto Feed Pets")
 
 -- Plant selection dropdown
@@ -6125,11 +6177,11 @@ local UpdatesGroupBox = Tabs.Main:AddLeftGroupbox("📋 Recent Updates")
 
 UpdatesGroupBox:AddLabel("🔄 What's New for Script Users:")
 
-UpdatesGroupBox:AddLabel("🆕 LATEST: Honey Crafter Update (v3.2)")
-UpdatesGroupBox:AddLabel("   • Added full Honey Crafter automation")
-UpdatesGroupBox:AddLabel("   • Auto Complete Crafting feature added")
-UpdatesGroupBox:AddLabel("   • Fixed Auto Give Plants & Auto Collect Honey")
-UpdatesGroupBox:AddLabel("   • Added recipe checking and craft notifications")
+UpdatesGroupBox:AddLabel("🆕 LATEST: Universal Crafting System (v4.0)")
+UpdatesGroupBox:AddLabel("   • Replaced old Honey Crafter with Universal System")
+UpdatesGroupBox:AddLabel("   • Auto Craft for ALL crafting stations (Saw, Grindstone, etc.)")
+UpdatesGroupBox:AddLabel("   • Auto Collect finished crafted items")
+UpdatesGroupBox:AddLabel("   • Smart nearby crafter detection & teleporting")
 
 UpdatesGroupBox:AddLabel("✅ Bug Fixes & Stability (v3.1)")
 UpdatesGroupBox:AddLabel("   • Fixed SafeCallback/SetValue errors in toggles")
@@ -6179,10 +6231,10 @@ CreditsGroupBox:AddLabel("Join for support & updates!")
 
 CreditsGroupBox:AddButton("📞 Copy Discord Link", function()
 	if setclipboard then
-		setclipboard("https://discord.gg/2WzJkxY4th")
+		setclipboard("https://discord.gg/SSJG3nmv6f")
 		Library:Notify("📋 Discord link copied to clipboard!", 3)
 	else
-		Library:Notify("Discord: https://discord.gg/2WzJkxY4th", 5)
+		Library:Notify("Discord: https://discord.gg/SSJG3nmv6f", 5)
 	end
 end)
 
@@ -6194,7 +6246,7 @@ CreditsGroupBox:AddLabel("• Features: Auto Farm, Player Tools, Mutation Sell")
 CreditsGroupBox:AddLabel("• Last Updated: " .. os.date("%m/%d/%Y"))
 
 CreditsGroupBox:AddButton("❤️ Show Support", function()
-	Library:Notify("❤️ Thanks for using the script!\nJoin Discord for more updates: discord.gg/2WzJkxY4th", 5)
+ Library:Notify("❤️ Thanks for using the script!\nJoin Discord for more updates: discord.gg/SSJG3nmv6f", 5)
 end)
 
 -- Enhanced sell item in hand function with teleportation
@@ -6407,10 +6459,10 @@ if Tabs.Dupe then
 
 	DupeInfoGroupBox:AddButton("📞 Join Discord Community", function()
 		if setclipboard then
-			setclipboard("https://discord.gg/2WzJkxY4th")
+			setclipboard("https://discord.gg/SSJG3nmv6f")
 			Library:Notify("📋 Discord link copied to clipboard!", 3)
 		else
-			Library:Notify("Discord: https://discord.gg/2WzJkxY4th", 5)
+			Library:Notify("Discord: https://discord.gg/SSJG3nmv6f", 5)
 		end
 	end)
 end
