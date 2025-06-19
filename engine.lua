@@ -3045,8 +3045,18 @@ function checkInventoryForRecipe(recipeName)
 			return true
 		end
 
-		-- Strip brackets and their contents for comparison
-		local cleanItemName = itemName:gsub("%s*%[.*%]%s*", "")
+		-- Strip brackets and their contents for comparison (using a non-greedy pattern)
+		-- This fixes the issue with multiple bracketed sections like "[Pollinated] Coconut [14.13kg]"
+		local cleanItemName = itemName
+		-- Remove all bracketed sections one by one
+		while true do
+			local before, after = cleanItemName:match("^(.-)%s*%[.-%]%s*(.*)$")
+			if not before then break end
+			cleanItemName = before .. after
+		end
+
+		-- Trim any extra spaces
+		cleanItemName = cleanItemName:match("^%s*(.-)%s*$")
 
 		-- Check if the cleaned name matches
 		if cleanItemName == requiredItemName then
@@ -3054,9 +3064,21 @@ function checkInventoryForRecipe(recipeName)
 			return true
 		end
 
+		-- Check if the cleaned name contains the required name
+		if cleanItemName:lower():find(requiredItemName:lower()) then
+			print("[DEBUG_LOG] Found item containing required name:", itemName, "contains", requiredItemName)
+			return true
+		end
+
 		-- Check if it's a seed version of the item
 		local itemNameLower = cleanItemName:lower()
 		local requiredItemNameLower = requiredItemName:lower()
+
+		-- If the required item doesn't have "seed" in the name but the item does, it's not a match
+		if not string.find(requiredItemNameLower, "seed") and string.find(itemNameLower, "seed") then
+			print("[DEBUG_LOG] Item has 'seed' in name but required item doesn't:", itemName, "for", requiredItemName)
+			return false
+		end
 
 		-- If the item contains the required name and has "seed" in it
 		if string.find(itemNameLower, requiredItemNameLower) and string.find(itemNameLower, "seed") then
@@ -3309,17 +3331,58 @@ function teleportToCrafterAndCraft(recipeName)
 	-- Wait for teleport to register
 	task.wait(1)
 
-	-- Ensure we're holding the fruit (first required item)
+	-- Function to check if an item matches a required item (copied from checkInventoryForRecipe)
+	local function isMatchingItem(itemName, requiredItemName)
+		-- Exact match
+		if itemName == requiredItemName then
+			return true
+		end
+
+		-- Strip brackets and their contents for comparison
+		local cleanItemName = itemName:gsub("%s*%[.*%]%s*", "")
+
+		-- Check if the cleaned name matches
+		if cleanItemName == requiredItemName then
+			print("[DEBUG_LOG] Found item with brackets:", itemName, "matches", requiredItemName)
+			return true
+		end
+
+		-- Check if it's a seed version of the item
+		local itemNameLower = cleanItemName:lower()
+		local requiredItemNameLower = requiredItemName:lower()
+
+		-- If the required item doesn't have "seed" in the name but the item does, it's not a match
+		if not string.find(requiredItemNameLower, "seed") and string.find(itemNameLower, "seed") then
+			print("[DEBUG_LOG] Item has 'seed' in name but required item doesn't:", itemName, "for", requiredItemName)
+			return false
+		end
+
+		-- If the item contains the required name and has "seed" in it
+		if string.find(itemNameLower, requiredItemNameLower) and string.find(itemNameLower, "seed") then
+			print("[DEBUG_LOG] Found seed version of required item:", itemName, "for", requiredItemName)
+			return true
+		end
+
+		-- Check if the item name starts with the required name (partial match)
+		if string.find(itemNameLower, "^" .. requiredItemNameLower) then
+			print("[DEBUG_LOG] Found item starting with required name:", itemName, "for", requiredItemName)
+			return true
+		end
+
+		return false
+	end
+
+	-- Ensure we're holding the first required item
 	local firstRequiredItem = recipe.Inputs[1].ItemData.ItemName
 	local backpack = LocalPlayer:FindFirstChild("Backpack")
 	local itemEquipped = false
 
 	if backpack then
 		for _, item in pairs(backpack:GetChildren()) do
-			if item:IsA("Tool") and item.Name == firstRequiredItem then
+			if item:IsA("Tool") and isMatchingItem(item.Name, firstRequiredItem) then
 				-- Equip the item
 				LocalPlayer.Character.Humanoid:EquipTool(item)
-				print("[DEBUG_LOG] Equipped required item:", firstRequiredItem)
+				print("[DEBUG_LOG] Equipped required item:", item.Name, "for", firstRequiredItem)
 				itemEquipped = true
 				break
 			end
@@ -3331,20 +3394,47 @@ function teleportToCrafterAndCraft(recipeName)
 
 	-- Verify the item is actually equipped
 	local currentTool = LocalPlayer.Character:FindFirstChildWhichIsA("Tool")
-	if not currentTool or currentTool.Name ~= firstRequiredItem then
+	if not currentTool or not isMatchingItem(currentTool.Name, firstRequiredItem) then
 		print("[DEBUG_LOG] Failed to equip required item:", firstRequiredItem)
-		Library:Notify("You must equip " .. firstRequiredItem .. " before crafting " .. recipeName, 5)
 
-		-- Return to original position if item not equipped
-		if originalPosition then
-			LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
-			print("[DEBUG_LOG] Returned to original position")
+		-- Try to find any matching item in the backpack
+		local matchingItems = {}
+		if backpack then
+			for _, item in pairs(backpack:GetChildren()) do
+				if item:IsA("Tool") and isMatchingItem(item.Name, firstRequiredItem) then
+					table.insert(matchingItems, item.Name)
+				end
+			end
 		end
 
-		return false
+		if #matchingItems > 0 then
+			Library:Notify("Trying to equip " .. table.concat(matchingItems, " or ") .. " for crafting " .. recipeName, 3)
+			-- Try one more time with the first matching item
+			if backpack:FindFirstChild(matchingItems[1]) then
+				LocalPlayer.Character.Humanoid:EquipTool(backpack:FindFirstChild(matchingItems[1]))
+				task.wait(0.5)
+				currentTool = LocalPlayer.Character:FindFirstChildWhichIsA("Tool")
+				if currentTool and isMatchingItem(currentTool.Name, firstRequiredItem) then
+					itemEquipped = true
+					print("[DEBUG_LOG] Successfully equipped alternative item:", currentTool.Name)
+				end
+			end
+		end
+
+		if not itemEquipped then
+			Library:Notify("You must have " .. firstRequiredItem .. " in your inventory before crafting " .. recipeName, 5)
+
+			-- Return to original position if item not equipped
+			if originalPosition then
+				LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
+				print("[DEBUG_LOG] Returned to original position")
+			end
+
+			return false
+		end
 	end
 
-	print("[DEBUG_LOG] Verified item is equipped:", firstRequiredItem)
+	print("[DEBUG_LOG] Verified item is equipped for:", firstRequiredItem)
 
 	-- Interact with crafting station (trigger proximity prompt)
 	local proximityPrompt = craftingStation:FindFirstChildWhichIsA("ProximityPrompt", true)
@@ -3366,6 +3456,83 @@ function teleportToCrafterAndCraft(recipeName)
 			print("[DEBUG_LOG] Successfully selected recipe:", recipeName)
 
 			-- Wait for recipe selection to register
+			task.wait(1)
+
+			-- Attempt to deliver all required items to the crafter
+			local allItemsDelivered = true
+			for _, input in ipairs(recipe.Inputs) do
+				local requiredItemName = input.ItemData.ItemName
+				local itemDelivered = false
+
+				-- Try to find and deliver this item
+				if backpack then
+					for _, item in pairs(backpack:GetChildren()) do
+						if item:IsA("Tool") and isMatchingItem(item.Name, requiredItemName) then
+							-- Try to deliver this item to the crafter
+							print("[DEBUG_LOG] Attempting to deliver item:", item.Name, "for", requiredItemName)
+
+							-- Equip the item
+							LocalPlayer.Character.Humanoid:EquipTool(item)
+							task.wait(0.3)
+
+							-- Move closer to the crafting station
+							LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(proximityPrompt.Parent.Position + Vector3.new(0, 1, 0))
+							task.wait(0.3)
+
+							-- Get the UUID of the item
+							local itemUUID = ""
+							if item:FindFirstChild("Configuration") and item.Configuration:FindFirstChild("UUID") then
+								itemUUID = item.Configuration.UUID.Value
+							else
+								-- Try to generate a UUID if one doesn't exist
+								itemUUID = "{" .. game:GetService("HttpService"):GenerateGUID(false) .. "}"
+								print("[DEBUG_LOG] Generated UUID for item:", itemUUID)
+							end
+
+							-- Fire the remote event to submit the item to the crafter
+							local CraftingGlobalObjectService = ReplicatedStorage.GameEvents.CraftingGlobalObjectService
+							local success = pcall(function()
+								print("[DEBUG_LOG] Firing CraftingGlobalObjectService:FireServer with InputItem")
+								CraftingGlobalObjectService:FireServer(
+									"InputItem",
+									craftingStation,
+									craftingStationType,
+									1, -- Slot number, assuming 1 for simplicity
+									{
+										ItemType = item.Name,
+										ItemData = {
+											UUID = itemUUID
+										}
+									}
+								)
+							end)
+
+							if success then
+								print("[DEBUG_LOG] Successfully fired InputItem event for:", item.Name)
+
+								-- Fire the PickupEvent to confirm submission
+								local PickupEvent = ReplicatedStorage.GameEvents.PickupEvent
+								pcall(function()
+									print("[DEBUG_LOG] Firing PickupEvent:Fire with Craft_SubmitItem")
+									PickupEvent:Fire("Craft_SubmitItem")
+								end)
+							else
+								print("[DEBUG_LOG] Failed to fire InputItem event for:", item.Name)
+							end
+
+							itemDelivered = true
+							break
+						end
+					end
+				end
+
+				if not itemDelivered then
+					print("[DEBUG_LOG] Failed to deliver item:", requiredItemName)
+					allItemsDelivered = false
+				end
+			end
+
+			-- Wait for all items to be processed
 			task.wait(1)
 
 			-- Start crafting
@@ -5445,8 +5612,8 @@ PetAutoFeedGroupBox:AddDropdown("FeedPlantsList", {
 	Default = 1,
 	Multi = true, -- Allow multiple selections
 
-	Text = "Seeds - Auto Plant Seeds",
-	Tooltip = "Choose which seeds to automatically plant",
+	Text = "Select Plants/Fruits",
+	Tooltip = "Choose which plants/fruits to feed to your pets",
 
 	Callback = function(Value)
 		print("[cb] Selected seeds for feeding:", Value)
@@ -7377,11 +7544,11 @@ local function WebhookSend(Type, Fields)
 							 color = ColorValue,
 							 fields = Fields,
 							 thumbnail = {
-								 url = "https://i.imgur.com/IujpE3l.png" -- Generic code icon
+								 url = "https://i.imgur.com/8wEeX0J.png" -- Generic code icon
 							 },
 							 footer = {
 								 text = "Created by Vulpine Webhook",
-								 icon_url = "https://i.imgur.com/IujpE3l.png" -- Generic verified icon
+								 icon_url = "https://i.imgur.com/JrIa63B.png" -- Generic verified icon
 							 },
 							 timestamp = TimeStamp
 			}
